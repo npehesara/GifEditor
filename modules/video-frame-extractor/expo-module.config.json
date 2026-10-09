@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["VideoFrameExtractorModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.videoframeextractor.VideoFrameExtractorModule"]
+  }
+}

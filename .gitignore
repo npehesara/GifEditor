@@ -39,3 +39,25 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Logs and temporary files
+*.log
+crash.log
+scratch/
+
+# Local editor settings
+.vscode/
+
+# Android build outputs
+/android/
+
+# Generated builds inside local Expo native modules
+/modules/*/android/build/
+
+# Generated Gradle caches inside local Expo modules
+/modules/*/android/.gradle/

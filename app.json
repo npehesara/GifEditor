@@ -1,25 +1,50 @@
 {
   "expo": {
-    "name": "GifEditor",
+    "name": "GIF Editor",
     "slug": "GifEditor",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.gifeditor.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0E0F14",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "permissions": [
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_VIDEO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-sharing",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Grant permission to save and import GIFs.",
+          "savePhotosPermission": "Grant permission to save exported GIFs to your gallery."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Grant permission to select GIFs, videos, and images."
+        }
+      ],
+      "expo-video",
+      "expo-font"
+    ]
   }
 }
