@@ -14,7 +14,7 @@ export type ExtractionTarget = {
 declare class VideoFrameExtractorModule extends NativeModule {
   extractFrames(videoUri: string, startTimeMs: number, endTimeMs: number, intervalMs: number): Promise<ExtractedFrame[]>;
   beginExtraction(videoUri: string, maxWidth: number, maxHeight: number): Promise<ExtractionTarget>;
-  getFrame(timestampMs: number): Promise<Uint8Array | null>;
+  getFrame(timestampMs: number, options?: any): Promise<Uint8Array | null>;
   endExtraction(): Promise<void>;
   decodeImage(imageUri: string, maxWidth: number, maxHeight: number): Promise<{
     width: number;

@@ -95,7 +95,7 @@ class VideoFrameExtractorModule : Module() {
       }
     }
 
-    AsyncFunction("getFrame") { timestampMs: Double, promise: Promise ->
+    AsyncFunction("getFrame") { timestampMs: Double, options: Map<String, Any>?, promise: Promise ->
       try {
         val r = retriever
         if (r == null) {
@@ -116,11 +116,77 @@ class VideoFrameExtractorModule : Module() {
           bitmap = scaled
         }
 
-        // Must ensure ARGB_8888 for consistent 4 bytes per pixel
-        var finalBitmap = bitmap
-        if (bitmap.config != Bitmap.Config.ARGB_8888) {
-          finalBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
-          bitmap.recycle()
+        var finalBitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(finalBitmap)
+        val paint = android.graphics.Paint()
+
+        // Apply ColorMatrix if provided
+        if (options != null && options.containsKey("colorMatrix")) {
+          val matrixList = options["colorMatrix"] as? List<Double>
+          if (matrixList != null && matrixList.size == 20) {
+            val floatArray = FloatArray(20)
+            for (i in 0 until 20) floatArray[i] = matrixList[i].toFloat()
+            val colorMatrix = android.graphics.ColorMatrix(floatArray)
+            paint.colorFilter = android.graphics.ColorMatrixColorFilter(colorMatrix)
+          }
+        }
+        
+        canvas.drawBitmap(bitmap, 0f, 0f, paint)
+        bitmap.recycle()
+
+        // Draw text layers
+        if (options != null && options.containsKey("textLayers")) {
+          val textLayers = options["textLayers"] as? List<Map<String, Any>>
+          if (textLayers != null) {
+            for (layer in textLayers) {
+              val text = layer["text"] as? String ?: continue
+              val startMs = (layer["startMs"] as? Double) ?: 0.0
+              val endMs = (layer["endMs"] as? Double) ?: Double.MAX_VALUE
+              
+              if (timestampMs < startMs || timestampMs > endMs) continue
+
+              val xPercent = (layer["x"] as? Double) ?: 50.0
+              val yPercent = (layer["y"] as? Double) ?: 50.0
+              val scale = (layer["scale"] as? Double) ?: 1.0
+              val rotation = (layer["rotation"] as? Double) ?: 0.0
+              val fontSize = (layer["fontSize"] as? Double) ?: 48.0
+              val color = (layer["color"] as? String) ?: "#FFFFFF"
+              
+              val textPaint = android.graphics.Paint().apply {
+                isAntiAlias = true
+                textSize = (fontSize * scale).toFloat()
+                this.color = android.graphics.Color.parseColor(color)
+                textAlign = android.graphics.Paint.Align.CENTER
+              }
+
+              val isBold = (layer["isBold"] as? Boolean) ?: false
+              val isItalic = (layer["isItalic"] as? Boolean) ?: false
+              val typefaceStyle = if (isBold && isItalic) android.graphics.Typeface.BOLD_ITALIC else if (isBold) android.graphics.Typeface.BOLD else if (isItalic) android.graphics.Typeface.ITALIC else android.graphics.Typeface.NORMAL
+              textPaint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, typefaceStyle)
+
+              val x = (xPercent / 100.0 * targetWidth).toFloat()
+              val y = (yPercent / 100.0 * targetHeight).toFloat()
+              
+              canvas.save()
+              canvas.rotate(rotation.toFloat(), x, y)
+
+              // Handle outline
+              val outlineEnabled = (layer["outlineEnabled"] as? Boolean) ?: false
+              if (outlineEnabled) {
+                val outlineColor = (layer["outlineColor"] as? String) ?: "#000000"
+                val outlineWidth = (layer["outlineWidth"] as? Double) ?: 2.0
+                val outlinePaint = android.graphics.Paint(textPaint).apply {
+                  style = android.graphics.Paint.Style.STROKE
+                  strokeWidth = (outlineWidth * scale).toFloat() * 2f
+                  this.color = android.graphics.Color.parseColor(outlineColor)
+                }
+                canvas.drawText(text, x, y, outlinePaint)
+              }
+
+              canvas.drawText(text, x, y, textPaint)
+              canvas.restore()
+            }
+          }
         }
 
         val size = finalBitmap.width * finalBitmap.height * 4

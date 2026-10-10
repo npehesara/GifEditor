@@ -22,6 +22,8 @@ import { useEvent, useEventListener } from 'expo';
 import * as FileSystem from 'expo-file-system';
 import GifToVideoModule from '../../modules/gif-to-video/src/GifToVideoModule';
 import VideoFrameExtractorModule from '../../modules/video-frame-extractor/src/VideoFrameExtractorModule';
+import { generateColorMatrix } from '../utils/filterMatrix';
+import { DEFAULT_FILTER } from '../constants/filters';
 // @ts-ignore
 import { GIFEncoder, quantize, applyPalette } from 'gifenc';
 import * as ImagePicker from 'expo-image-picker';
@@ -194,6 +196,7 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
   const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
   const [speedState, setSpeedState] = useState(1);
   const [textLayers, setTextLayers] = useState<TextLayer[]>([]);
+  const [stickerLayers, setStickerLayers] = useState<StickerLayer[]>([]);
   const [selectedTextLayerId, setSelectedTextLayerId] = useState<string | null>(null);
   const [showTextTimelines, setShowTextTimelines] = useState(false);
   const [cropState, setCropState] = useState<CropRect>({ x: 0, y: 0, width: 1, height: 1 });
@@ -220,6 +223,7 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
       let frameCounter = 0;
       let globalW = 480;
       let globalH = 480;
+      let accMs = 0;
       
       for (let i = 0; i < segments.length; i++) {
          const seg = segments[i];
@@ -243,7 +247,107 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
          }
          
          for (let t = startMs; t < endMs; t += intervalMs * speed) {
-            let rgba = await VideoFrameExtractorModule.getFrame(Math.round(t));
+            const globalTimeMs = accMs + ((t - startMs) / speed);
+            const activeTextLayers = textLayers.filter(l => globalTimeMs >= l.startMs && globalTimeMs <= l.endMs);
+            const activeStickers = stickerLayers.filter(s => frameCounter >= s.startFrame && frameCounter <= s.endFrame);
+            
+            // Assume we had a filters state. We will just generate the matrix for DEFAULT_FILTER for now,
+            // but if the component is updated to have a filters state, it will just replace this variable.
+            const currentFilters = DEFAULT_FILTER; // Replace with actual state when UI is implemented
+            const matrix = currentFilters.preset !== 'original' || currentFilters.brightness !== 0 
+                ? generateColorMatrix(currentFilters) 
+                : undefined;
+
+            let options: any = undefined;
+            if ((activeTextLayers.length > 0 && previewLayout) || (activeStickers.length > 0 && previewLayout) || matrix) {
+              const containerRatio = previewLayout?.width ? previewLayout.width / previewLayout.height : 1;
+              const croppedRatio = (target.width * crop.width) / (target.height * crop.height);
+              let renderW = target.width, renderH = target.height;
+              let videoLeftInContainer = 0, videoTopInContainer = 0;
+              
+              if (previewLayout) {
+                  if (croppedRatio > containerRatio) {
+                      renderW = previewLayout.width;
+                      renderH = previewLayout.width / croppedRatio;
+                  } else {
+                      renderH = previewLayout.height;
+                      renderW = previewLayout.height * croppedRatio;
+                  }
+                  videoLeftInContainer = (previewLayout.width - renderW) / 2;
+                  videoTopInContainer = (previewLayout.height - renderH) / 2;
+              }
+
+              options = {};
+              if (matrix) {
+                  options.colorMatrix = matrix;
+              }
+              if ((activeTextLayers.length > 0 || activeStickers.length > 0) && previewLayout) {
+                const combinedLayers: any[] = [];
+                activeTextLayers.forEach(l => {
+                  const layerAbsX = (l.x / 100) * previewLayout.width;
+                  const layerAbsY = (l.y / 100) * previewLayout.height;
+                  const layerVidX = layerAbsX - videoLeftInContainer;
+                  const layerVidY = layerAbsY - videoTopInContainer;
+                  
+                  const cropVidPctX = (layerVidX / renderW) * 100;
+                  const cropVidPctY = (layerVidY / renderH) * 100;
+                  
+                  const uncroppedPctX = (crop.x * 100) + (cropVidPctX * crop.width);
+                  const uncroppedPctY = (crop.y * 100) + (cropVidPctY * crop.height);
+                  
+                  const exportedFontSize = (l.fontSize * l.scale) * (target.height * crop.height) / renderH;
+
+                  combinedLayers.push({
+                    text: l.text,
+                    color: l.color,
+                    isBold: l.isBold,
+                    isItalic: l.isItalic,
+                    outlineEnabled: l.outlineEnabled,
+                    outlineColor: l.outlineColor,
+                    outlineWidth: l.outlineWidth,
+                    startMs: 0,
+                    endMs: 999999999,
+                    x: uncroppedPctX,
+                    y: uncroppedPctY,
+                    fontSize: exportedFontSize,
+                    scale: 1.0,
+                    rotation: l.rotation
+                  });
+                });
+
+                activeStickers.forEach(s => {
+                  const layerAbsX = (s.x / 100) * previewLayout.width;
+                  const layerAbsY = (s.y / 100) * previewLayout.height;
+                  const layerVidX = layerAbsX - videoLeftInContainer;
+                  const layerVidY = layerAbsY - videoTopInContainer;
+                  
+                  const cropVidPctX = (layerVidX / renderW) * 100;
+                  const cropVidPctY = (layerVidY / renderH) * 100;
+                  
+                  const uncroppedPctX = (crop.x * 100) + (cropVidPctX * crop.width);
+                  const uncroppedPctY = (crop.y * 100) + (cropVidPctY * crop.height);
+                  
+                  // Stickers base size
+                  const exportedFontSize = (72 * s.scale) * (target.height * crop.height) / renderH;
+
+                  combinedLayers.push({
+                    text: s.content,
+                    color: '#FFFFFF',
+                    startMs: 0,
+                    endMs: 999999999,
+                    x: uncroppedPctX,
+                    y: uncroppedPctY,
+                    fontSize: exportedFontSize,
+                    scale: 1.0,
+                    rotation: s.rotation
+                  });
+                });
+
+                options.textLayers = combinedLayers;
+              }
+            }
+
+            let rgba = await VideoFrameExtractorModule.getFrame(Math.round(t), options);
             if (rgba) {
                 const cx = Math.round(target.width * crop.x);
                 const cy = Math.round(target.height * crop.y);
@@ -285,6 +389,7 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
             await new Promise(r => setTimeout(r, 1));
          }
          await VideoFrameExtractorModule.endExtraction();
+         accMs += (endMs - startMs) / speed;
       }
       
       gif.finish();
