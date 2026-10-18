@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, ActivityIndicator, SafeAreaView, ScrollView } from 'react-native';
-import { ArrowLeft, Play, Settings2 } from 'lucide-react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Play, Settings2 } from 'lucide-react-native';
 import { decodeGifFromUri, DecodedGifInfo } from '../services/gif/decoder';
+import { Header } from '../components/common/Header';
 
 interface PreviewScreenProps {
   uri: string;
@@ -10,6 +12,7 @@ interface PreviewScreenProps {
 }
 
 export default function PreviewScreen({ uri, onBack, onStartEditing }: PreviewScreenProps) {
+  const insets = useSafeAreaInsets();
   const [gifInfo, setGifInfo] = useState<DecodedGifInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,16 +42,10 @@ export default function PreviewScreen({ uri, onBack, onStartEditing }: PreviewSc
   }, [uri]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft color="#f8fafc" size={24} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Preview</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <View style={styles.container}>
+      <Header title="Preview" onBack={onBack} />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#6366f1" />
@@ -97,7 +94,7 @@ export default function PreviewScreen({ uri, onBack, onStartEditing }: PreviewSc
           </>
         ) : null}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

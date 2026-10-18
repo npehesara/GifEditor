@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, ScrollView, Alert, ActivityIndicator, Image, Platform } from 'react-native';
-import { ArrowLeft, Settings2 } from 'lucide-react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Settings2 } from 'lucide-react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { SelectedVideoInfo } from '../../App';
 import VideoFrameExtractorModule from '../../modules/video-frame-extractor/src/VideoFrameExtractorModule';
+import { Header } from '../components/common/Header';
 // @ts-ignore
 import { GIFEncoder, quantize, applyPalette } from 'gifenc';
 import * as FileSystem from 'expo-file-system';
@@ -109,17 +111,13 @@ export default function VideoToGifScreen({ videoInfo, onBack, onConversionComple
     }
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft color="#f8fafc" size={24} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Video → GIF</Text>
-        <View style={{ width: 24 }} />
-      </View>
+  const insets = useSafeAreaInsets();
 
-      <ScrollView contentContainerStyle={styles.content}>
+  return (
+    <View style={styles.container}>
+      <Header title="Video → GIF" onBack={onBack} />
+
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.videoContainer}>
           <VideoView
             style={[styles.videoPlayer, { aspectRatio }]}
@@ -171,7 +169,7 @@ export default function VideoToGifScreen({ videoInfo, onBack, onConversionComple
           )}
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -156,7 +156,6 @@ class VideoFrameExtractorModule : Module() {
                 isAntiAlias = true
                 textSize = (fontSize * scale).toFloat()
                 this.color = android.graphics.Color.parseColor(color)
-                textAlign = android.graphics.Paint.Align.CENTER
               }
 
               val isBold = (layer["isBold"] as? Boolean) ?: false
@@ -170,20 +169,88 @@ class VideoFrameExtractorModule : Module() {
               canvas.save()
               canvas.rotate(rotation.toFloat(), x, y)
 
-              // Handle outline
-              val outlineEnabled = (layer["outlineEnabled"] as? Boolean) ?: false
-              if (outlineEnabled) {
-                val outlineColor = (layer["outlineColor"] as? String) ?: "#000000"
-                val outlineWidth = (layer["outlineWidth"] as? Double) ?: 2.0
-                val outlinePaint = android.graphics.Paint(textPaint).apply {
-                  style = android.graphics.Paint.Style.STROKE
-                  strokeWidth = (outlineWidth * scale).toFloat() * 2f
-                  this.color = android.graphics.Color.parseColor(outlineColor)
+              val lines = text.split("\n")
+              val fontMetrics = textPaint.fontMetrics
+              val lineHeight = (fontMetrics.descent - fontMetrics.ascent) * 1.05f
+              val totalHeight = lines.size * lineHeight
+              // Center vertically at y (matching SVG preview)
+              val firstBaselineY = y - (totalHeight / 2f) - fontMetrics.ascent
+
+              val textAlign = (layer["textAlign"] as? String) ?: "center"
+              val maxLineWidth = lines.map { textPaint.measureText(it) }.maxOrNull() ?: 0f
+
+              val drawX = when (textAlign) {
+                "left" -> {
+                  textPaint.textAlign = android.graphics.Paint.Align.LEFT
+                  x - maxLineWidth / 2f
                 }
-                canvas.drawText(text, x, y, outlinePaint)
+                "right" -> {
+                  textPaint.textAlign = android.graphics.Paint.Align.RIGHT
+                  x + maxLineWidth / 2f
+                }
+                else -> {
+                  textPaint.textAlign = android.graphics.Paint.Align.CENTER
+                  x
+                }
               }
 
-              canvas.drawText(text, x, y, textPaint)
+              // Background
+              val backgroundEnabled = (layer["backgroundEnabled"] as? Boolean) ?: false
+              if (backgroundEnabled) {
+                try {
+                  val bgColor = (layer["backgroundColor"] as? String) ?: "#000000"
+                  val bgOpacity = (layer["backgroundOpacity"] as? Double) ?: 1.0
+                  val bgPadding = ((layer["backgroundPadding"] as? Double) ?: 8.0).toFloat() * scale.toFloat()
+                  val bgPaint = android.graphics.Paint().apply {
+                    isAntiAlias = true
+                    this.color = android.graphics.Color.parseColor(bgColor)
+                    alpha = (bgOpacity * 255.0).toInt().coerceIn(0, 255)
+                    style = android.graphics.Paint.Style.FILL
+                  }
+                  val bgLeft = x - maxLineWidth / 2f - bgPadding
+                  val bgTop = y - totalHeight / 2f - bgPadding
+                  val bgRight = x + maxLineWidth / 2f + bgPadding
+                  val bgBottom = y + totalHeight / 2f + bgPadding
+                  canvas.drawRoundRect(bgLeft, bgTop, bgRight, bgBottom, 8f, 8f, bgPaint)
+                } catch (e: Exception) {}
+              }
+
+              // Shadow
+              val shadowEnabled = (layer["shadowEnabled"] as? Boolean) ?: false
+              if (shadowEnabled) {
+                try {
+                  val shadowColor = (layer["shadowColor"] as? String) ?: "#000000"
+                  val shadowDx = ((layer["shadowOffsetX"] as? Double) ?: 2.0).toFloat()
+                  val shadowDy = ((layer["shadowOffsetY"] as? Double) ?: 2.0).toFloat()
+                  textPaint.setShadowLayer(4f, shadowDx, shadowDy, android.graphics.Color.parseColor(shadowColor))
+                } catch (e: Exception) {}
+              }
+
+              // Outline
+              val outlineEnabled = (layer["outlineEnabled"] as? Boolean) ?: false
+              var outlinePaint: android.graphics.Paint? = null
+              if (outlineEnabled) {
+                try {
+                  val outlineColor = (layer["outlineColor"] as? String) ?: "#000000"
+                  val outlineWidth = (layer["outlineWidth"] as? Double) ?: 2.0
+                  outlinePaint = android.graphics.Paint(textPaint).apply {
+                    style = android.graphics.Paint.Style.STROKE
+                    strokeWidth = (outlineWidth * scale).toFloat() * 2f
+                    this.color = android.graphics.Color.parseColor(outlineColor)
+                    clearShadowLayer()
+                  }
+                } catch (e: Exception) {}
+              }
+
+              for (i in lines.indices) {
+                val line = lines[i]
+                val lineY = firstBaselineY + i * lineHeight
+                if (outlinePaint != null) {
+                  canvas.drawText(line, drawX, lineY, outlinePaint)
+                }
+                canvas.drawText(line, drawX, lineY, textPaint)
+              }
+
               canvas.restore()
             }
           }

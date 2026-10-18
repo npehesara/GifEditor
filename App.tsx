@@ -66,6 +66,7 @@ export default function App() {
   });
 
   const [currentScreen, setCurrentScreen] = useState<ScreenState>('Home');
+  const [previousScreen, setPreviousScreen] = useState<ScreenState | null>(null);
   const [selectedGifUri, setSelectedGifUri] = useState<string | null>(null);
   const [mp4Info, setMp4Info] = useState<Mp4OutputInfo | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideoInfo | null>(null);
@@ -167,6 +168,7 @@ export default function App() {
 
   const handleGifCreationComplete = (info: GifOutputInfo) => {
     setGifInfo(info);
+    setPreviousScreen(currentScreen);
     setCurrentScreen('GifOutput');
   };
 
@@ -175,6 +177,7 @@ export default function App() {
     setMp4Info(null);
     setSelectedVideo(null);
     setGifInfo(null);
+    setPreviousScreen(null);
     setCurrentScreen('Home');
   };
 
@@ -184,6 +187,25 @@ export default function App() {
 
   const handleBackToVideoToGif = () => {
     setCurrentScreen('VideoToGif');
+  };
+
+  const handleBackFromGifOutput = () => {
+    if (previousScreen === 'GifEditor' && selectedGifUri) {
+      setCurrentScreen('GifEditor');
+    } else if (previousScreen === 'VideoToGif' && selectedVideo) {
+      setCurrentScreen('VideoToGif');
+    } else if (previousScreen === 'GifCollage') {
+      setCurrentScreen('GifCollage');
+    } else if (selectedGifUri) {
+      setCurrentScreen('GifEditor');
+    } else {
+      handleBackToHome();
+    }
+  };
+
+  const handleEditFromGifOutput = (uri: string) => {
+    setSelectedGifUri(uri);
+    setCurrentScreen('GifEditor');
   };
 
   const handleStartEditing = (info: DecodedGifInfo) => {
@@ -233,8 +255,9 @@ export default function App() {
         {currentScreen === 'GifOutput' && gifInfo && (
           <GifOutputScreen
             info={gifInfo}
-            onBack={handleBackToVideoToGif}
+            onBack={handleBackFromGifOutput}
             onDone={handleBackToHome}
+            onEdit={handleEditFromGifOutput}
           />
         )}
         {currentScreen === 'GifCollage' && (
@@ -251,6 +274,6 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#09090b',
   },
 });

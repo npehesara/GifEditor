@@ -1,8 +1,10 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, ScrollView, Alert, Image } from 'react-native';
-import { ArrowLeft, Save, Share } from 'lucide-react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Save, Share, Edit3 } from 'lucide-react-native';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
+import { Header } from '../components/common/Header';
 
 export interface GifOutputInfo {
   uri: string;
@@ -17,9 +19,11 @@ interface GifOutputScreenProps {
   info: GifOutputInfo;
   onBack: () => void;
   onDone: () => void;
+  onEdit?: (uri: string) => void;
 }
 
-export default function GifOutputScreen({ info, onBack, onDone }: GifOutputScreenProps) {
+export default function GifOutputScreen({ info, onBack, onDone, onEdit }: GifOutputScreenProps) {
+  const insets = useSafeAreaInsets();
   const [permissionResponse, requestPermission] = MediaLibrary.usePermissions();
 
   const handleSave = async () => {
@@ -55,18 +59,18 @@ export default function GifOutputScreen({ info, onBack, onDone }: GifOutputScree
   const durationSec = (info.durationMs / 1000).toFixed(1);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft color="#f8fafc" size={24} />
-        </TouchableOpacity>
-        <Text style={styles.title}>GIF Output</Text>
-        <TouchableOpacity style={styles.doneButton} onPress={onDone}>
-          <Text style={styles.doneButtonText}>Done</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <Header
+        title="GIF Output"
+        onBack={onBack}
+        rightAction={
+          <TouchableOpacity style={styles.doneButton} onPress={onDone}>
+            <Text style={styles.doneButtonText}>Done</Text>
+          </TouchableOpacity>
+        }
+      />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.previewContainer}>
           <Image
             source={{ uri: info.uri }}
@@ -104,9 +108,16 @@ export default function GifOutputScreen({ info, onBack, onDone }: GifOutputScree
             <Share color="#38bdf8" size={24} />
             <Text style={styles.secondaryButtonText}>Share</Text>
           </TouchableOpacity>
+
+          {onEdit && (
+            <TouchableOpacity style={[styles.actionButton, styles.secondaryButton, { borderColor: '#8b5cf6' }]} onPress={() => onEdit(info.uri)}>
+              <Edit3 color="#a78bfa" size={24} />
+              <Text style={[styles.secondaryButtonText, { color: '#a78bfa' }]}>Open in GIF Editor</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

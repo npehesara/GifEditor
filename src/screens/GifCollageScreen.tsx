@@ -1,8 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, ScrollView, Alert, Dimensions, Image, ActivityIndicator, PanResponder, Animated } from 'react-native';
-import { ArrowLeft, Layers, Plus, X, Trash2, Settings2 } from 'lucide-react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, Dimensions, Image, ActivityIndicator, PanResponder, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Layers, Plus, X, Trash2, Settings2 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { GifOutputInfo } from './GifOutputScreen';
+import { Header } from '../components/common/Header';
 
 interface GifCollageScreenProps {
   onBack: () => void;
@@ -403,17 +405,13 @@ export default function GifCollageScreen({ onBack, onConversionComplete }: GifCo
     );
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft color="#f8fafc" size={24} />
-        </TouchableOpacity>
-        <Text style={styles.title}>GIF Collage</Text>
-        <View style={{ width: 24 }} />
-      </View>
+  const insets = useSafeAreaInsets();
 
-      <ScrollView contentContainerStyle={styles.content}>
+  return (
+    <View style={styles.container}>
+      <Header title="GIF Collage" onBack={onBack} />
+
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         {renderLayout()}
 
         <View style={styles.controlsContainer}>
@@ -480,7 +478,7 @@ export default function GifCollageScreen({ onBack, onConversionComplete }: GifCo
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

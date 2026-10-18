@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, ScrollView, Alert } from 'react-native';
-import { ArrowLeft, Check, Share2, Download, Home } from 'lucide-react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Check, Share2, Download, Home } from 'lucide-react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { Mp4OutputInfo } from '../../App';
+import { Header } from '../components/common/Header';
 
 interface Mp4OutputScreenProps {
   info: Mp4OutputInfo;
@@ -61,19 +63,21 @@ export default function Mp4OutputScreen({ info, onBack, onDone }: Mp4OutputScree
   // Determine aspect ratio for the VideoView container to not distort
   const aspectRatio = info.width / info.height;
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft color="#f8fafc" size={24} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Output Complete</Text>
-        <TouchableOpacity style={styles.doneButton} onPress={onDone}>
-          <Home color="#f8fafc" size={24} />
-        </TouchableOpacity>
-      </View>
+  const insets = useSafeAreaInsets();
 
-      <ScrollView contentContainerStyle={styles.content}>
+  return (
+    <View style={styles.container}>
+      <Header
+        title="Output Complete"
+        onBack={onBack}
+        rightAction={
+          <TouchableOpacity style={styles.doneButton} onPress={onDone}>
+            <Home color="#f8fafc" size={22} />
+          </TouchableOpacity>
+        }
+      />
+
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.videoContainer}>
           <VideoView
             style={[styles.videoPlayer, { aspectRatio }]}
@@ -128,7 +132,7 @@ export default function Mp4OutputScreen({ info, onBack, onDone }: Mp4OutputScree
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

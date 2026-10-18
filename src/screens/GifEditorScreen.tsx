@@ -13,6 +13,7 @@ import {
   Image,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Scissors, Crop, Clock, Gauge, Type, Download, Plus, Play, Pause, SkipBack, SkipForward, Video, Image as ImageIcon, Layers, X, SplitSquareHorizontal } from 'lucide-react-native';
@@ -30,10 +31,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { CropOverlay, CropRect } from '../components/editor/CropOverlay';
 import { CropControls, AspectRatioType } from '../components/editor/CropControls';
 import { SpeedControls } from '../components/editor/SpeedControls';
-import { TextLayer } from '../types/editor';
+import { TextLayer, StickerLayer } from '../types/editor';
 import { TextOverlay } from '../components/editor/TextOverlay';
 import { TextControls } from '../components/editor/TextControls';
 import { TextTimelineTrack } from '../components/editor/TextTimelineTrack';
+import { Header } from '../components/common/Header';
 interface GifEditorScreenProps {
   uri: string; // Original GIF URI
   onBack: () => void;
@@ -311,7 +313,16 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                     y: uncroppedPctY,
                     fontSize: exportedFontSize,
                     scale: 1.0,
-                    rotation: l.rotation
+                    rotation: l.rotation,
+                    textAlign: l.textAlign || 'center',
+                    backgroundEnabled: l.backgroundEnabled,
+                    backgroundColor: l.backgroundColor,
+                    backgroundOpacity: l.backgroundOpacity,
+                    backgroundPadding: l.backgroundPadding,
+                    shadowEnabled: l.shadowEnabled,
+                    shadowColor: l.shadowColor,
+                    shadowOffsetX: l.shadowOffsetX,
+                    shadowOffsetY: l.shadowOffsetY,
                   });
                 });
 
@@ -339,7 +350,8 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                     y: uncroppedPctY,
                     fontSize: exportedFontSize,
                     scale: 1.0,
-                    rotation: s.rotation
+                    rotation: s.rotation,
+                    textAlign: 'center',
                   });
                 });
 
@@ -834,20 +846,58 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
     timelineContentWidth.current = w;
   }, []);
 
+  const handleTopBack = () => {
+    if (isAddingMedia) {
+      setIsAddingMedia(false);
+      return;
+    }
+    if (isEditingText) {
+      setIsEditingText(false);
+      setSelectedTextLayerId(null);
+      return;
+    }
+    if (showTextTimelines) {
+      setShowTextTimelines(false);
+      setSelectedTextLayerId(null);
+      return;
+    }
+    if (isTrimming) {
+      setIsTrimming(false);
+      return;
+    }
+    if (isCropping) {
+      setIsCropping(false);
+      return;
+    }
+    if (isSpeeding) {
+      setIsSpeeding(false);
+      return;
+    }
+
+    Alert.alert(
+      'Exit GIF Editor?',
+      'Are you sure you want to exit? Any unsaved edits will be lost.',
+      [
+        { text: 'Keep Editing', style: 'cancel' },
+        { text: 'Exit to Home', style: 'destructive', onPress: onBack },
+      ]
+    );
+  };
+
   const insets = useSafeAreaInsets();
 
   return (
     <View style={styles.container}>
       {/* 1. Top bar */}
-      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity style={styles.headerButton} onPress={onBack}>
-          <ArrowLeft color="#f8fafc" size={24} />
-        </TouchableOpacity>
-        <Text style={styles.title}>GIF Editor</Text>
-        <TouchableOpacity style={styles.headerButton} onPress={() => alert('Timeline Zoom â€” coming next')}>
-          <Text style={{ color: '#06b6d4', fontWeight: 'bold', fontSize: 16 }}>- O +</Text>
-        </TouchableOpacity>
-      </View>
+      <Header
+        title="GIF Editor"
+        onBack={handleTopBack}
+        rightAction={
+          <TouchableOpacity style={styles.headerButton} onPress={() => alert('Timeline Zoom — coming next')}>
+            <Text style={{ color: '#06b6d4', fontWeight: 'bold', fontSize: 16 }}>- O +</Text>
+          </TouchableOpacity>
+        }
+      />
 
       {isProcessingMedia ? (
         <View style={styles.centerContainer}>
@@ -877,14 +927,16 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                 <TextOverlay
                   layers={textLayers}
                   currentTimeMs={globalCurrentMs}
-                  selectedLayerId={selectedTextLayerId}
-                  editable={true}
+                  selectedLayerId={isEditingText ? selectedTextLayerId : null}
+                  editable={isEditingText}
                   onSelectLayer={(id) => {
-                    setSelectedTextLayerId(id);
-                    setPlaybackMode('project');
-                    setIsTrimming(false);
-                    setIsCropping(false);
-                    setIsSpeeding(false);
+                    if (isEditingText) {
+                      setSelectedTextLayerId(id);
+                      setPlaybackMode('project');
+                      setIsTrimming(false);
+                      setIsCropping(false);
+                      setIsSpeeding(false);
+                    }
                   }}
                   onDoubleTapLayer={(id) => {
                     setSelectedTextLayerId(id);
@@ -912,8 +964,16 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
               <TextControls
                 layer={textLayers.find(l => l.id === selectedTextLayerId)!}
                 onChange={(updated) => setTextLayers(prev => prev.map(l => l.id === updated.id ? updated : l))}
-                onApply={() => setIsEditingText(false)}
-                onCancel={() => setIsEditingText(false)}
+                onApply={() => {
+                  setIsEditingText(false);
+                  setSelectedTextLayerId(null);
+                  setShowTextTimelines(false);
+                }}
+                onCancel={() => {
+                  setIsEditingText(false);
+                  setSelectedTextLayerId(null);
+                  setShowTextTimelines(false);
+                }}
                 fonts={[
                   'Roboto_400Regular', 'Roboto_700Bold', 'Lato_400Regular', 'Oswald_400Regular',
                   'Raleway_400Regular', 'Montserrat_400Regular', 'Poppins_400Regular',
@@ -989,7 +1049,11 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
               <>
                 {showTextTimelines && (
                   <View style={styles.trimHeader}>
-                    <TouchableOpacity onPress={() => setShowTextTimelines(false)}>
+                    <TouchableOpacity onPress={() => {
+                      setShowTextTimelines(false);
+                      setSelectedTextLayerId(null);
+                      setIsEditingText(false);
+                    }}>
                       <Text style={styles.trimCancel}>Done</Text>
                     </TouchableOpacity>
                     <Text style={styles.trimTitle}>Text Timing</Text>
@@ -1146,6 +1210,7 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                               isSelected={isSelected}
                               onSelect={() => {
                                 setSelectedTextLayerId(layer.id);
+                                setIsEditingText(true);
                               }}
                               onUpdateTiming={(startMs, endMs) => {
                                 setTextLayers(prev => prev.map(l => l.id === layer.id ? { ...l, startMs, endMs } : l));
@@ -1192,8 +1257,12 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                                 alert('Please select a segment in the timeline first.');
                                 return;
                               }
+                              setIsEditingText(false);
+                              setSelectedTextLayerId(null);
                               setIsTrimming(true);
                             } else if (tool.id === 'split') {
+                              setIsEditingText(false);
+                              setSelectedTextLayerId(null);
                               const activeSegment = segments[activeSegmentIndex];
                               const splitMs = currentTimeSec * 1000;
                               const startMs = activeSegment.trimStartMs ?? 0;
@@ -1219,6 +1288,8 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                                 alert('Please select a segment in the timeline first.');
                                 return;
                               }
+                              setIsEditingText(false);
+                              setSelectedTextLayerId(null);
                               player.pause();
                               setCropState(activeSegment.crop || { x: 0, y: 0, width: 1, height: 1 });
                               setCropRatio('free');
@@ -1228,6 +1299,8 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                                 alert('Please select a segment in the timeline first.');
                                 return;
                               }
+                              setIsEditingText(false);
+                              setSelectedTextLayerId(null);
                               setSpeedState(activeSegment.speed ?? 1);
                               setIsSpeeding(true);
                             } else if (tool.id === 'text') {
@@ -1261,7 +1334,13 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                                 alert('Add some text first to adjust timing.');
                                 return;
                               }
-                              setShowTextTimelines(prev => !prev);
+                              setShowTextTimelines(prev => {
+                                if (prev) {
+                                  setSelectedTextLayerId(null);
+                                  setIsEditingText(false);
+                                }
+                                return !prev;
+                              });
                             } else {
                               alert(`${(tool as any).name} — coming next`);
                             }

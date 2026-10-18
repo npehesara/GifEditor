@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Dimensions, Animated, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Image as ImageIcon, Video, Layers, Wand2, FileDown } from 'lucide-react-native';
@@ -16,6 +17,7 @@ interface HomeScreenProps {
 const { width, height } = Dimensions.get('window');
 
 export default function HomeScreen({ onImportGif, onGifToVideo, onVideoToGif, onGifCollage }: HomeScreenProps) {
+  const insets = useSafeAreaInsets();
   // Animated values for background blobs
   const blob1Anim = useRef(new Animated.Value(0)).current;
   const blob2Anim = useRef(new Animated.Value(0)).current;
@@ -112,7 +114,16 @@ export default function HomeScreen({ onImportGif, onGifToVideo, onVideoToGif, on
         <BlurView intensity={100} tint="dark" style={StyleSheet.absoluteFill} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 24 : 0) + 16,
+            paddingBottom: insets.bottom + 40,
+          }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>GIF{"\n"}Editor</Text>
@@ -253,8 +264,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'android' ? 70 : 50,
-    paddingBottom: 60,
   },
   header: {
     marginBottom: 40,

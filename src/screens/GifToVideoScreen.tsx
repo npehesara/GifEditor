@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, ActivityIndicator, SafeAreaView, ScrollView, Alert } from 'react-native';
-import { ArrowLeft, Film, Settings2 } from 'lucide-react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Film, Settings2 } from 'lucide-react-native';
 import { decodeGifFromUri, DecodedGifInfo, compositeGifFrames } from '../services/gif/decoder';
+import { Header } from '../components/common/Header';
 
 interface GifToVideoScreenProps {
   uri: string;
@@ -10,6 +12,7 @@ interface GifToVideoScreenProps {
 }
 
 export default function GifToVideoScreen({ uri, onBack, onConversionComplete }: GifToVideoScreenProps) {
+  const insets = useSafeAreaInsets();
   const [gifInfo, setGifInfo] = useState<DecodedGifInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,16 +47,10 @@ export default function GifToVideoScreen({ uri, onBack, onConversionComplete }: 
   }, [uri]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft color="#f8fafc" size={24} />
-        </TouchableOpacity>
-        <Text style={styles.title}>GIF → Video</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <View style={styles.container}>
+      <Header title="GIF → Video" onBack={onBack} />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#06b6d4" />
@@ -168,7 +165,7 @@ export default function GifToVideoScreen({ uri, onBack, onConversionComplete }: 
           </>
         ) : null}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
