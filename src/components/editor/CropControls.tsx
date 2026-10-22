@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { Colors } from '../../constants/colors';
 
 export type AspectRatioType = 'free' | 'original' | '1:1' | '4:5' | '16:9' | '9:16';
 
@@ -54,18 +55,19 @@ export function CropControls({ currentRatio, onRatioSelect, onApply, onCancel, o
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b', borderTopWidth: 1, borderColor: '#27272a', justifyContent: 'space-between', paddingTop: 16 },
+  container: { flex: 1, backgroundColor: Colors.surface, borderTopWidth: 1, borderColor: Colors.border, justifyContent: 'space-between', paddingTop: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16 },
-  title: { color: '#f8fafc', fontSize: 16, fontWeight: 'bold' },
-  headerBtn: { color: '#a1a1aa', fontSize: 16 },
-  applyBtn: { color: '#06b6d4', fontWeight: 'bold' },
+  title: { color: Colors.text, fontSize: 16, fontWeight: 'bold' },
+  headerBtn: { color: Colors.textSecondary, fontSize: 16 },
+  applyBtn: { color: Colors.secondaryLight, fontWeight: 'bold' },
   ratioScrollContainer: { height: 60, justifyContent: 'center' },
   ratioScroll: { paddingHorizontal: 16, gap: 12, alignItems: 'center' },
-  ratioBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a' },
-  ratioBtnActive: { backgroundColor: '#06b6d4', borderColor: '#06b6d4' },
-  ratioText: { color: '#a1a1aa', fontSize: 14, fontWeight: '500' },
-  ratioTextActive: { color: '#09090b', fontWeight: 'bold' },
+  ratioBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: Colors.surfaceLight, borderWidth: 1, borderColor: Colors.border },
+  ratioBtnActive: { backgroundColor: Colors.secondary, borderColor: Colors.secondary },
+  ratioText: { color: Colors.textSecondary, fontSize: 14, fontWeight: '500' },
+  ratioTextActive: { color: '#080912', fontWeight: 'bold' },
   footer: { alignItems: 'center', paddingHorizontal: 16 },
-  resetBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8, backgroundColor: '#27272a' },
-  resetText: { color: '#f8fafc', fontSize: 14, fontWeight: '500' },
+  resetBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8, backgroundColor: Colors.surfaceLight },
+  resetText: { color: Colors.textSecondary, fontSize: 14, fontWeight: '500' },
 });
+

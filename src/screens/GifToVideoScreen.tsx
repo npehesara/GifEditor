@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Film, Settings2 } from 'lucide-react-native';
 import { decodeGifFromUri, DecodedGifInfo, compositeGifFrames } from '../services/gif/decoder';
 import { Header } from '../components/common/Header';
+import { Colors } from '../constants/colors';
 
 interface GifToVideoScreenProps {
   uri: string;
@@ -53,7 +54,7 @@ export default function GifToVideoScreen({ uri, onBack, onConversionComplete }: 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#06b6d4" />
+            <ActivityIndicator size="large" color={Colors.secondaryLight} />
             <Text style={styles.loadingText}>Analyzing GIF...</Text>
           </View>
         ) : error ? (
@@ -172,7 +173,7 @@ export default function GifToVideoScreen({ uri, onBack, onConversionComplete }: 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    borderBottomColor: Colors.border,
   },
   backButton: {
     padding: 8,
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
   },
   content: {
     padding: 20,
@@ -201,7 +202,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     marginTop: 16,
     fontSize: 16,
   },
@@ -210,18 +211,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    color: '#ef4444',
+    color: Colors.danger,
     fontSize: 16,
   },
   imageContainer: {
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.surface,
     borderRadius: 20,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
     aspectRatio: 1,
   },
   image: {
@@ -229,17 +230,17 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   infoCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.card,
     borderRadius: 20,
     padding: 24,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
   },
   filename: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -253,7 +254,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -261,10 +262,10 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
   },
   primaryButton: {
-    backgroundColor: '#06b6d4',
+    backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -278,12 +279,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   successContainer: {
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.card,
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
     marginTop: 16,
   },
   successIconContainer: {
@@ -293,13 +294,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   successTitle: {
-    color: '#f8fafc',
+    color: Colors.text,
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   successText: {
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     fontSize: 14,
     marginBottom: 4,
   },

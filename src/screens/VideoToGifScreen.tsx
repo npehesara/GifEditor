@@ -11,6 +11,7 @@ import { GIFEncoder, quantize, applyPalette } from 'gifenc';
 import * as FileSystem from 'expo-file-system';
 import { Buffer } from 'buffer';
 import { GifOutputInfo } from './GifOutputScreen';
+import { Colors } from '../constants/colors';
 
 interface VideoToGifScreenProps {
   videoInfo: SelectedVideoInfo;
@@ -176,7 +177,7 @@ export default function VideoToGifScreen({ videoInfo, onBack, onConversionComple
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    borderBottomColor: Colors.border,
   },
   backButton: {
     padding: 8,
@@ -195,18 +196,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
   },
   content: {
     padding: 20,
   },
   videoContainer: {
-    backgroundColor: '#000000',
+    backgroundColor: Colors.previewBg,
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
@@ -216,17 +217,17 @@ const styles = StyleSheet.create({
     maxHeight: 400,
   },
   infoCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.card,
     borderRadius: 20,
     padding: 24,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
   },
   filename: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -239,7 +240,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -247,10 +248,10 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
   },
   primaryButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -265,43 +266,43 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     padding: 16,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: 'rgba(244, 63, 94, 0.12)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: 'rgba(244, 63, 94, 0.35)',
     marginBottom: 20,
   },
   errorText: {
-    color: '#ef4444',
+    color: Colors.danger,
     textAlign: 'center',
   },
   framesResultContainer: {
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.card,
     borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
     marginBottom: 40,
   },
   framesResultTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
     marginBottom: 8,
   },
   framesResultSubtitle: {
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     marginBottom: 16,
   },
   timestampsList: {
     maxHeight: 150,
-    backgroundColor: '#0f172a',
+    backgroundColor: Colors.backgroundDark,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
   },
   timestampText: {
-    color: '#38bdf8',
+    color: Colors.secondaryLight,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     marginBottom: 4,
   },
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   previewFrameTitle: {
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -318,6 +319,6 @@ const styles = StyleSheet.create({
   previewImage: {
     width: '100%',
     borderRadius: 12,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.previewBg,
   },
 });

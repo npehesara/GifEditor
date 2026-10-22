@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, PanResponder, TouchableOpacity } from 'react-native';
 import { TextLayer } from '../../types/editor';
+import { Colors } from '../../constants/colors';
 
 interface TextTimelineTrackProps {
   layer: TextLayer;
@@ -152,7 +153,7 @@ export function TextTimelineTrack({
           { 
             left: startPx, 
             width: widthPx,
-            backgroundColor: isSelected ? '#06b6d4' : '#3f3f46' 
+            backgroundColor: isSelected ? Colors.secondary : Colors.borderLight 
           }
         ]}
         {...middleResponder.panHandlers}
@@ -190,7 +191,7 @@ const styles = StyleSheet.create({
   },
   trackBackground: {
     ...StyleSheet.absoluteFill as any,
-    backgroundColor: '#18181b',
+    backgroundColor: Colors.surfaceLight,
     borderRadius: 6,
   },
   activeBar: {
@@ -219,7 +220,7 @@ const styles = StyleSheet.create({
   handleVisible: {
     width: 5,
     height: 24,
-    backgroundColor: '#a1a1aa',
+    backgroundColor: Colors.textSecondary,
     borderRadius: 3,
   },
   handleVisibleSelected: {

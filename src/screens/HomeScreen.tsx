@@ -6,6 +6,7 @@ import { BlurView } from 'expo-blur';
 import { Image as ImageIcon, Video, Layers, Wand2, FileDown } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system';
 import { runSyntheticVideoTest } from '../../modules/gif-to-video';
+import { Colors } from '../constants/colors';
 
 interface HomeScreenProps {
   onImportGif: () => void;
@@ -243,24 +244,24 @@ export default function HomeScreen({ onImportGif, onGifToVideo, onVideoToGif, on
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: Colors.background,
   },
   blob: {
     position: 'absolute',
     width: width * 0.8,
     height: width * 0.8,
     borderRadius: width * 0.4,
-    opacity: 0.4,
+    opacity: 0.35,
   },
   blob1: {
     top: -width * 0.2,
     right: -width * 0.2,
-    backgroundColor: '#8b5cf6', // Violet
+    backgroundColor: Colors.primary, // Violet
   },
   blob2: {
     bottom: height * 0.2,
     left: -width * 0.3,
-    backgroundColor: '#06b6d4', // Cyan
+    backgroundColor: Colors.secondary, // Cyan
   },
   scrollContent: {
     paddingHorizontal: 24,
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 11,
-    color: '#06b6d4',
+    color: Colors.secondaryLight,
     letterSpacing: 4,
     fontWeight: '700',
     marginBottom: 12,
@@ -279,7 +280,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 48,
     fontWeight: '900',
-    color: '#ffffff',
+    color: Colors.text,
     lineHeight: 52,
     letterSpacing: -1,
   },
@@ -302,26 +303,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   heroFrame1: {
-    borderColor: 'rgba(6, 182, 212, 0.8)',
-    backgroundColor: 'rgba(6, 182, 212, 0.05)',
+    borderColor: 'rgba(6, 182, 212, 0.85)',
+    backgroundColor: 'rgba(6, 182, 212, 0.08)',
     zIndex: 3,
     overflow: 'hidden',
   },
   heroFrame2: {
-    borderColor: 'rgba(139, 92, 246, 0.5)',
-    backgroundColor: 'rgba(139, 92, 246, 0.02)',
+    borderColor: 'rgba(139, 92, 246, 0.65)',
+    backgroundColor: 'rgba(139, 92, 246, 0.05)',
     zIndex: 2,
   },
   heroFrame3: {
-    borderColor: 'rgba(236, 72, 153, 0.3)',
-    backgroundColor: 'rgba(236, 72, 153, 0.01)',
+    borderColor: 'rgba(236, 72, 153, 0.45)',
+    backgroundColor: 'rgba(236, 72, 153, 0.03)',
     zIndex: 1,
   },
   importCta: {
     width: '100%',
-    shadowColor: '#8b5cf6',
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.45,
     shadowRadius: 20,
     elevation: 10,
   },
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   importCtaSub: {
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -351,11 +352,11 @@ const styles = StyleSheet.create({
   },
   quickActionsPill: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: 'rgba(29, 34, 60, 0.75)',
     borderRadius: 40,
     padding: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: Colors.border,
   },
   quickActionItem: {
     alignItems: 'center',
@@ -371,14 +372,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   quickActionText: {
-    color: 'rgba(255,255,255,0.6)',
+    color: Colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
   },
   quickActionDivider: {
     width: 1,
     height: 40,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: Colors.border,
     alignSelf: 'center',
     marginHorizontal: 8,
   },
@@ -403,18 +404,18 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(165, 180, 252, 0.25)',
     borderStyle: 'dashed',
   },
   loopSpaceTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.lavender,
     letterSpacing: 3,
     marginBottom: 8,
   },
   loopSpaceText: {
-    color: 'rgba(255,255,255,0.3)',
+    color: Colors.textMuted,
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,

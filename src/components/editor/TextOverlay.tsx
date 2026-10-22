@@ -1,7 +1,8 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, PanResponder, Animated, Text as RNText, TouchableOpacity } from 'react-native';
 import Svg, { Text as SvgText, Rect } from 'react-native-svg';
 import { TextLayer } from '../../types/editor';
+import { Colors } from '../../constants/colors';
 
 interface TextOverlayProps {
   layers: TextLayer[];
@@ -30,7 +31,7 @@ export function TextOverlay({
 }: TextOverlayProps) {
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View style={[StyleSheet.absoluteFill, { zIndex: 10 }]} pointerEvents="box-none">
       {layers.map(layer => {
         const isVisible = currentTimeMs >= layer.startMs && currentTimeMs <= layer.endMs;
         if (!isVisible) return null;
@@ -55,176 +56,187 @@ export function TextOverlay({
 }
 
 function DraggableTextLayer({ layer, isSelected, onSelect, onDoubleTap, onUpdate, onDelete, containerWidth, containerHeight, editable }: any) {
-  const panX = useRef(new Animated.Value((layer.x / 100) * containerWidth)).current;
-  const panY = useRef(new Animated.Value((layer.y / 100) * containerHeight)).current;
-  const scale = useRef(new Animated.Value(layer.scale || 1)).current;
+  const initialCenterX = (layer.x / 100) * containerWidth;
+  const initialCenterY = (layer.y / 100) * containerHeight;
+
+  const currentCenter = useRef({
+    x: initialCenterX,
+    y: initialCenterY,
+    scale: layer.scale || 1
+  });
 
   const layerRef = useRef(layer);
-  useEffect(() => { layerRef.current = layer; }, [layer]);
-
+  const editableRef = useRef(editable);
+  const isSelectedRef = useRef(isSelected);
+  const containerWidthRef = useRef(containerWidth);
+  const containerHeightRef = useRef(containerHeight);
+  const onUpdateRef = useRef(onUpdate);
+  const onSelectRef = useRef(onSelect);
   const isDragging = useRef(false);
 
-  // Update animated values when props change externally (unless currently dragging)
   useEffect(() => {
-    if (isDragging.current) return;
-    panX.setValue((layer.x / 100) * containerWidth);
-    panY.setValue((layer.y / 100) * containerHeight);
-    scale.setValue(layer.scale || 1);
-  }, [layer.x, layer.y, layer.scale, containerWidth, containerHeight]);
+    layerRef.current = layer;
+    editableRef.current = editable;
+    isSelectedRef.current = isSelected;
+    containerWidthRef.current = containerWidth;
+    containerHeightRef.current = containerHeight;
+    onUpdateRef.current = onUpdate;
+    onSelectRef.current = onSelect;
+  });
 
   const [textSize, setTextSize] = useState({ width: 0, height: 0, measured: false });
+  const [prevTextKey, setPrevTextKey] = useState(`${layer.text}_${layer.fontSize}_${layer.fontFamily}`);
+  const currentTextKey = `${layer.text}_${layer.fontSize}_${layer.fontFamily}`;
+  if (currentTextKey !== prevTextKey) {
+    setPrevTextKey(currentTextKey);
+    if (textSize.measured) {
+      setTextSize({ width: 0, height: 0, measured: false });
+    }
+  }
 
   // Render SVG text lines
   const lines = layer.text.split('\n');
   const lineHeight = layer.fontSize * 1.25;
   const totalHeight = Math.max(lines.length * lineHeight, 20);
 
-  // Estimate initial text width/height before layout measurement to avoid jump
+  // Estimate initial text width before layout measurement to avoid jump
   const maxLineLen = Math.max(...lines.map((l: string) => l.length), 1);
   const estWidth = Math.max(maxLineLen * (layer.fontSize * 0.6), 40);
 
-  const textWidth = textSize.measured ? textSize.width : estWidth;
-  const textHeight = textSize.measured ? textSize.height : totalHeight;
+  const textWidth = textSize.measured && textSize.width > 0 ? textSize.width : estWidth;
+  const textHeight = totalHeight; // Deterministic height matching native export exactly
 
   const padding = 16;
   const boundsWidth = Math.ceil(textWidth + padding * 2);
   const boundsHeight = Math.ceil(textHeight + padding * 2);
 
   const boundsRef = useRef({ width: boundsWidth, height: boundsHeight });
-  boundsRef.current = { width: boundsWidth, height: boundsHeight };
-
-  const getClampedPosition = (newX: number, newY: number, newScale: number) => {
-    if (containerWidth <= 0 || containerHeight <= 0) {
-      return { clampedX: newX, clampedY: newY };
-    }
-    const halfW = (boundsRef.current.width * newScale) / 2;
-    const halfH = (boundsRef.current.height * newScale) / 2;
-
-    // Allow positioning text cleanly anywhere within preview container bounds
-    const minX = -halfW * 0.4;
-    const maxX = containerWidth + halfW * 0.4;
-    const minY = -halfH * 0.4;
-    const maxY = containerHeight + halfH * 0.4;
-
-    const clampedX = Math.max(minX, Math.min(maxX, newX));
-    const clampedY = Math.max(minY, Math.min(maxY, newY));
-
-    return { clampedX, clampedY };
-  };
-
-  const dragStart = useRef({
-    panX: (layer.x / 100) * containerWidth,
-    panY: (layer.y / 100) * containerHeight,
-    scale: layer.scale || 1,
-    initialDistance: 0,
-    isPinching: false,
+  useEffect(() => {
+    boundsRef.current = { width: boundsWidth, height: boundsHeight };
   });
 
+  const [panX] = useState(() => new Animated.Value(initialCenterX - boundsWidth / 2));
+  const [panY] = useState(() => new Animated.Value(initialCenterY - boundsHeight / 2));
+  const [scale] = useState(() => new Animated.Value(layer.scale || 1));
+
+  // Update animated values when props change externally (unless currently dragging)
+  useEffect(() => {
+    if (isDragging.current) return;
+    const cW = containerWidth;
+    const cH = containerHeight;
+    if (cW <= 0 || cH <= 0) return;
+
+    const cx = (layer.x / 100) * cW;
+    const cy = (layer.y / 100) * cH;
+    const s = layer.scale || 1;
+
+    currentCenter.current = { x: cx, y: cy, scale: s };
+    panX.setValue(cx - boundsWidth / 2);
+    panY.setValue(cy - boundsHeight / 2);
+    scale.setValue(s);
+  }, [layer.x, layer.y, layer.scale, containerWidth, containerHeight, boundsWidth, boundsHeight, panX, panY, scale]);
+
   const commitPosition = () => {
+    const cW = containerWidthRef.current;
+    const cH = containerHeightRef.current;
+    if (cW <= 0 || cH <= 0) {
+      isDragging.current = false;
+      return;
+    }
+
+    const finalCenterX = currentCenter.current.x;
+    const finalCenterY = currentCenter.current.y;
+    const finalScale = currentCenter.current.scale;
+
+    // Center can move across entire visible GIF frame [0, cW] and [0, cH]
+    const clampedX = Math.max(0, Math.min(cW, finalCenterX));
+    const clampedY = Math.max(0, Math.min(cH, finalCenterY));
+
+    currentCenter.current.x = clampedX;
+    currentCenter.current.y = clampedY;
+
     isDragging.current = false;
-    dragStart.current.isPinching = false;
-    dragStart.current.initialDistance = 0;
 
-    if (containerWidth <= 0 || containerHeight <= 0) return;
+    // Convert pixel coordinates directly to percentage (0..100)
+    const pctX = (clampedX / cW) * 100;
+    const pctY = (clampedY / cH) * 100;
 
-    const finalX = (panX as any)._value;
-    const finalY = (panY as any)._value;
-    const finalScale = (scale as any)._value;
-
-    const { clampedX, clampedY } = getClampedPosition(finalX, finalY, finalScale);
-
-    onUpdate({
+    onUpdateRef.current({
       ...layerRef.current,
-      x: (clampedX / containerWidth) * 100,
-      y: (clampedY / containerHeight) * 100,
-      scale: finalScale
+      x: pctX,
+      y: pctY,
+      scale: finalScale,
     });
   };
 
-  const lastTapRef = useRef<number>(0);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => editable,
-      onMoveShouldSetPanResponder: (_, gesture) => {
-        return editable && (Math.abs(gesture.dx) > 1 || Math.abs(gesture.dy) > 1);
-      },
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: (evt) => {
-        if (!editable) return;
-        isDragging.current = true;
-
-        const now = Date.now();
-        if (now - lastTapRef.current < 300) {
-          onDoubleTap();
-        } else {
-          onSelect();
-        }
-        lastTapRef.current = now;
-
-        dragStart.current = {
-          panX: (panX as any)._value,
-          panY: (panY as any)._value,
-          scale: (scale as any)._value,
-          initialDistance: 0,
-          isPinching: false,
-        };
-
-        const touches = evt.nativeEvent.touches;
-        if (touches && touches.length >= 2) {
-          dragStart.current.isPinching = true;
-          const dx = touches[0].pageX - touches[1].pageX;
-          const dy = touches[0].pageY - touches[1].pageY;
-          dragStart.current.initialDistance = Math.sqrt(dx * dx + dy * dy);
-        }
-      },
-      onPanResponderMove: (evt, gesture) => {
-        if (!editable) return;
-        const touches = evt.nativeEvent.touches;
-
-        // Two-finger pinch to scale smoothly around center
-        if (touches && touches.length >= 2) {
-          const dx = touches[0].pageX - touches[1].pageX;
-          const dy = touches[0].pageY - touches[1].pageY;
-          const currentDistance = Math.sqrt(dx * dx + dy * dy);
-
-          if (!dragStart.current.isPinching || dragStart.current.initialDistance === 0) {
-            dragStart.current.isPinching = true;
-            dragStart.current.initialDistance = currentDistance;
-            dragStart.current.scale = (scale as any)._value;
-          } else if (dragStart.current.initialDistance > 10) {
-            const rawRatio = currentDistance / dragStart.current.initialDistance;
-            const newScale = Math.max(0.25, Math.min(5, dragStart.current.scale * rawRatio));
-            scale.setValue(newScale);
-          }
-          return;
-        }
-
-        // Single finger drag tracking delta from initial grant position
-        if (dragStart.current.isPinching) {
-          dragStart.current.isPinching = false;
-          dragStart.current.panX = (panX as any)._value - gesture.dx;
-          dragStart.current.panY = (panY as any)._value - gesture.dy;
-        }
-
-        const newX = dragStart.current.panX + gesture.dx;
-        const newY = dragStart.current.panY + gesture.dy;
-        const currentScale = (scale as any)._value;
-
-        const { clampedX, clampedY } = getClampedPosition(newX, newY, currentScale);
-        panX.setValue(clampedX);
-        panY.setValue(clampedY);
-      },
-      onPanResponderRelease: () => {
-        if (!editable) return;
-        commitPosition();
-      },
-      onPanResponderTerminate: () => {
-        if (!editable) return;
+  // Commit on unmount if gesture was interrupted
+  useEffect(() => {
+    return () => {
+      if (isDragging.current) {
         commitPosition();
       }
-    })
-  ).current;
+    };
+  }, []);
+
+  const dragStartCenter = useRef({ x: initialCenterX, y: initialCenterY });
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => editableRef.current,
+        onMoveShouldSetPanResponder: (_, gesture) => {
+          return editableRef.current && (Math.abs(gesture.dx) > 1 || Math.abs(gesture.dy) > 1);
+        },
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: () => {
+          if (!editableRef.current) return;
+
+          if (!isSelectedRef.current) {
+            onSelectRef.current();
+          }
+
+          isDragging.current = true;
+
+          dragStartCenter.current = {
+            x: currentCenter.current.x,
+            y: currentCenter.current.y,
+          };
+        },
+        onPanResponderMove: (_, gesture) => {
+          if (!editableRef.current) return;
+
+          const cW = containerWidthRef.current;
+          const cH = containerHeightRef.current;
+          if (cW <= 0 || cH <= 0) return;
+
+          // Candidate center from gesture initial grant + cumulative displacement
+          const newCenterX = dragStartCenter.current.x + gesture.dx;
+          const newCenterY = dragStartCenter.current.y + gesture.dy;
+
+          // Completely free movement across the GIF preview content area
+          const clampedX = Math.max(0, Math.min(cW, newCenterX));
+          const clampedY = Math.max(0, Math.min(cH, newCenterY));
+
+          currentCenter.current.x = clampedX;
+          currentCenter.current.y = clampedY;
+
+          const bw = boundsRef.current.width;
+          const bh = boundsRef.current.height;
+
+          panX.setValue(clampedX - bw / 2);
+          panY.setValue(clampedY - bh / 2);
+        },
+        onPanResponderRelease: () => {
+          if (!editableRef.current) return;
+          commitPosition();
+        },
+        onPanResponderTerminate: () => {
+          if (!editableRef.current) return;
+          commitPosition();
+        }
+      }),
+    [panX, panY]
+  );
 
   const svgW = boundsWidth - 16;
   const svgH = boundsHeight - 16;
@@ -276,27 +288,24 @@ function DraggableTextLayer({ layer, isSelected, onSelect, onDoubleTap, onUpdate
         style={[
           styles.layerContainer,
           {
-            top: 0,
-            left: 0,
+            left: panX,
+            top: panY,
             width: boundsWidth,
             height: boundsHeight,
             transform: [
-              { translateX: panX },
-              { translateY: panY },
-              { translateX: -boundsWidth / 2 },
-              { translateY: -boundsHeight / 2 },
               { scale: scale },
-              { rotate: `${layer.rotation || 0}deg` }
+              { rotate: `${layer.rotation || 0}deg` },
             ],
             opacity: layer.opacity,
-            zIndex: layer.zIndex || 1,
+            zIndex: isSelected ? 20 : (layer.zIndex || 2),
           }
         ]}
         pointerEvents={editable ? "auto" : "none"}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         {...(editable ? panResponder.panHandlers : {})}
       >
         <View style={[styles.box, isSelected && editable && styles.boxSelected]}>
-          <Svg width={svgW} height={svgH} style={{ overflow: 'visible' }}>
+          <Svg width={svgW} height={svgH} pointerEvents="none" style={{ overflow: 'visible' }}>
             {layer.backgroundEnabled && (
               <Rect
                 x={svgCenterX - textWidth / 2 - bgPadding}
@@ -345,8 +354,15 @@ function DraggableTextLayer({ layer, isSelected, onSelect, onDoubleTap, onUpdate
           </Svg>
 
           {isSelected && editable && (
-            <View style={styles.deleteButtonContainer}>
-              <TouchableOpacity onPress={onDelete} style={styles.deleteButton}>
+            <View style={styles.deleteButtonContainer} onStartShouldSetResponderCapture={() => true}>
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                style={styles.deleteButton}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <RNText style={styles.deleteButtonText}>✕</RNText>
               </TouchableOpacity>
             </View>
@@ -364,12 +380,13 @@ const styles = StyleSheet.create({
   box: {
     padding: 8,
     flex: 1,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    borderRadius: 8,
   },
   boxSelected: {
-    borderWidth: 2,
-    borderColor: '#06b6d4',
+    borderColor: Colors.secondaryLight,
     borderStyle: 'dashed',
-    borderRadius: 8,
   },
   deleteButtonContainer: {
     position: 'absolute',
@@ -381,7 +398,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#ef4444',
+    backgroundColor: Colors.danger,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,

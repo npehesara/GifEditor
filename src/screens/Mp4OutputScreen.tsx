@@ -7,6 +7,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { Mp4OutputInfo } from '../../App';
 import { Header } from '../components/common/Header';
+import { Colors } from '../constants/colors';
 
 interface Mp4OutputScreenProps {
   info: Mp4OutputInfo;
@@ -72,7 +73,7 @@ export default function Mp4OutputScreen({ info, onBack, onDone }: Mp4OutputScree
         onBack={onBack}
         rightAction={
           <TouchableOpacity style={styles.doneButton} onPress={onDone}>
-            <Home color="#f8fafc" size={22} />
+            <Home color={Colors.text} size={22} />
           </TouchableOpacity>
         }
       />
@@ -139,7 +140,7 @@ export default function Mp4OutputScreen({ info, onBack, onDone }: Mp4OutputScree
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -149,7 +150,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    borderBottomColor: Colors.border,
   },
   backButton: {
     padding: 8,
@@ -162,18 +163,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
   },
   content: {
     padding: 20,
   },
   videoContainer: {
-    backgroundColor: '#000000',
+    backgroundColor: Colors.previewBg,
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
@@ -183,17 +184,17 @@ const styles = StyleSheet.create({
     maxHeight: 400,
   },
   infoCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.card,
     borderRadius: 20,
     padding: 24,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
   },
   filename: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -207,7 +208,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -215,13 +216,13 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
   },
   actionsContainer: {
     paddingBottom: 40,
   },
   primaryButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -235,7 +236,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   secondaryButton: {
-    backgroundColor: '#334155',
+    backgroundColor: Colors.surfaceLight,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -243,10 +244,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#475569',
+    borderColor: Colors.border,
   },
   secondaryButtonText: {
-    color: '#ffffff',
+    color: Colors.secondaryLight,
     fontSize: 18,
     fontWeight: 'bold',
   },

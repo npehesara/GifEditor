@@ -5,6 +5,7 @@ import { Save, Share, Edit3 } from 'lucide-react-native';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { Header } from '../components/common/Header';
+import { Colors } from '../constants/colors';
 
 export interface GifOutputInfo {
   uri: string;
@@ -105,14 +106,14 @@ export default function GifOutputScreen({ info, onBack, onDone, onEdit }: GifOut
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.actionButton, styles.secondaryButton]} onPress={handleShare}>
-            <Share color="#38bdf8" size={24} />
+            <Share color={Colors.secondaryLight} size={24} />
             <Text style={styles.secondaryButtonText}>Share</Text>
           </TouchableOpacity>
 
           {onEdit && (
-            <TouchableOpacity style={[styles.actionButton, styles.secondaryButton, { borderColor: '#8b5cf6' }]} onPress={() => onEdit(info.uri)}>
-              <Edit3 color="#a78bfa" size={24} />
-              <Text style={[styles.secondaryButtonText, { color: '#a78bfa' }]}>Open in GIF Editor</Text>
+            <TouchableOpacity style={[styles.actionButton, styles.editButton]} onPress={() => onEdit(info.uri)}>
+              <Edit3 color={Colors.primaryLight} size={24} />
+              <Text style={styles.editButtonText}>Open in GIF Editor</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -124,7 +125,7 @@ export default function GifOutputScreen({ info, onBack, onDone, onEdit }: GifOut
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    borderBottomColor: Colors.border,
   },
   backButton: {
     padding: 8,
@@ -143,14 +144,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
   },
   doneButton: {
     padding: 8,
     marginRight: -8,
   },
   doneButtonText: {
-    color: '#38bdf8',
+    color: Colors.secondaryLight,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -158,12 +159,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   previewContainer: {
-    backgroundColor: '#000000',
+    backgroundColor: Colors.previewBg,
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
@@ -174,17 +175,17 @@ const styles = StyleSheet.create({
     maxHeight: 400,
   },
   infoCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.card,
     borderRadius: 20,
     padding: 24,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
   },
   filename: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -197,7 +198,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -205,7 +206,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
   },
   actionButtons: {
     gap: 12,
@@ -219,7 +220,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   primaryButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.primary,
   },
   primaryButtonText: {
     color: '#ffffff',
@@ -227,12 +228,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   secondaryButton: {
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    backgroundColor: 'rgba(6, 182, 212, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderColor: 'rgba(6, 182, 212, 0.35)',
   },
   secondaryButtonText: {
-    color: '#38bdf8',
+    color: Colors.secondaryLight,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  editButton: {
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.35)',
+  },
+  editButtonText: {
+    color: Colors.primaryLight,
     fontSize: 18,
     fontWeight: 'bold',
   },

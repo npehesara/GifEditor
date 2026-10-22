@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -36,6 +36,14 @@ import { TextOverlay } from '../components/editor/TextOverlay';
 import { TextControls } from '../components/editor/TextControls';
 import { TextTimelineTrack } from '../components/editor/TextTimelineTrack';
 import { Header } from '../components/common/Header';
+import { Colors } from '../constants/colors';
+import {
+  calculateContentDimensions,
+  calculatePreviewContentRect,
+  calculateExportGeometry,
+  transformLayerForExport,
+  transformStickerForExport,
+} from '../utils/textGeometry';
 interface GifEditorScreenProps {
   uri: string; // Original GIF URI
   onBack: () => void;
@@ -143,7 +151,7 @@ export default function GifEditorScreenWrapper({ uri, onBack, onExport }: GifEdi
     return (
       <View style={styles.container}>
         <View style={[styles.centerContainer, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-          <ActivityIndicator size="large" color="#06b6d4" />
+          <ActivityIndicator size="large" color={Colors.secondaryLight} />
           <Text style={styles.loadingText}>{progressText}</Text>
         </View>
       </View>
@@ -198,9 +206,13 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
   const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
   const [speedState, setSpeedState] = useState(1);
   const [textLayers, setTextLayers] = useState<TextLayer[]>([]);
+  const [editingDraft, setEditingDraft] = useState<TextLayer | null>(null);
+  const editingDraftRef = useRef<TextLayer | null>(null);
+  useEffect(() => { editingDraftRef.current = editingDraft; }, [editingDraft]);
   const [stickerLayers, setStickerLayers] = useState<StickerLayer[]>([]);
   const [selectedTextLayerId, setSelectedTextLayerId] = useState<string | null>(null);
   const [showTextTimelines, setShowTextTimelines] = useState(false);
+  const [showTextLayerPicker, setShowTextLayerPicker] = useState(false);
   const [cropState, setCropState] = useState<CropRect>({ x: 0, y: 0, width: 1, height: 1 });
   const [cropRatio, setCropRatio] = useState<AspectRatioType>('free');
   const [previewLayout, setPreviewLayout] = useState<{ width: number; height: number } | null>(null);
@@ -223,8 +235,11 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
       }
       
       let frameCounter = 0;
-      let globalW = 480;
-      let globalH = 480;
+      // Authoritative output dimensions based strictly on segment 0 source dimensions and explicit crop
+      const firstSeg = segments[0];
+      const firstGeom = calculateExportGeometry(firstSeg.width, firstSeg.height, firstSeg.crop, 480);
+      const globalW = firstGeom.exportWidth;
+      const globalH = firstGeom.exportHeight;
       let accMs = 0;
       
       for (let i = 0; i < segments.length; i++) {
@@ -232,127 +247,55 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
          const speed = seg.speed ?? 1;
          const startMs = seg.trimStartMs ?? 0;
          const endMs = seg.trimEndMs ?? seg.durationMs;
-         
-         const target = await VideoFrameExtractorModule.beginExtraction(seg.uri, 480, 480);
-         
-         const crop = seg.crop || { x: 0, y: 0, width: 1, height: 1 };
-         let cw = Math.round(target.width * crop.width);
-         let ch = Math.round(target.height * crop.height);
-         if (cw % 2 !== 0) cw--;
-         if (ch % 2 !== 0) ch--;
-         cw = Math.max(2, cw);
-         ch = Math.max(2, ch);
 
-         if (i === 0) {
-             globalW = cw;
-             globalH = ch;
-         }
+         const geom = calculateExportGeometry(seg.width, seg.height, seg.crop, 480);
+         
+         const target = await VideoFrameExtractorModule.beginExtraction(
+           seg.uri,
+           geom.targetWidth,
+           geom.targetHeight
+         );
          
          for (let t = startMs; t < endMs; t += intervalMs * speed) {
             const globalTimeMs = accMs + ((t - startMs) / speed);
             const activeTextLayers = textLayers.filter(l => globalTimeMs >= l.startMs && globalTimeMs <= l.endMs);
             const activeStickers = stickerLayers.filter(s => frameCounter >= s.startFrame && frameCounter <= s.endFrame);
             
-            // Assume we had a filters state. We will just generate the matrix for DEFAULT_FILTER for now,
-            // but if the component is updated to have a filters state, it will just replace this variable.
-            const currentFilters = DEFAULT_FILTER; // Replace with actual state when UI is implemented
+            const currentFilters = DEFAULT_FILTER;
             const matrix = currentFilters.preset !== 'original' || currentFilters.brightness !== 0 
                 ? generateColorMatrix(currentFilters) 
                 : undefined;
 
             let options: any = undefined;
-            if ((activeTextLayers.length > 0 && previewLayout) || (activeStickers.length > 0 && previewLayout) || matrix) {
-              const containerRatio = previewLayout?.width ? previewLayout.width / previewLayout.height : 1;
-              const croppedRatio = (target.width * crop.width) / (target.height * crop.height);
-              let renderW = target.width, renderH = target.height;
-              let videoLeftInContainer = 0, videoTopInContainer = 0;
-              
-              if (previewLayout) {
-                  if (croppedRatio > containerRatio) {
-                      renderW = previewLayout.width;
-                      renderH = previewLayout.width / croppedRatio;
-                  } else {
-                      renderH = previewLayout.height;
-                      renderW = previewLayout.height * croppedRatio;
-                  }
-                  videoLeftInContainer = (previewLayout.width - renderW) / 2;
-                  videoTopInContainer = (previewLayout.height - renderH) / 2;
-              }
-
+            if (activeTextLayers.length > 0 || activeStickers.length > 0 || matrix) {
               options = {};
               if (matrix) {
-                  options.colorMatrix = matrix;
+                options.colorMatrix = matrix;
               }
-              if ((activeTextLayers.length > 0 || activeStickers.length > 0) && previewLayout) {
+              if (activeTextLayers.length > 0 || activeStickers.length > 0) {
                 const combinedLayers: any[] = [];
-                activeTextLayers.forEach(l => {
-                  const layerAbsX = (l.x / 100) * previewLayout.width;
-                  const layerAbsY = (l.y / 100) * previewLayout.height;
-                  const layerVidX = layerAbsX - videoLeftInContainer;
-                  const layerVidY = layerAbsY - videoTopInContainer;
-                  
-                  const cropVidPctX = (layerVidX / renderW) * 100;
-                  const cropVidPctY = (layerVidY / renderH) * 100;
-                  
-                  const uncroppedPctX = (crop.x * 100) + (cropVidPctX * crop.width);
-                  const uncroppedPctY = (crop.y * 100) + (cropVidPctY * crop.height);
-                  
-                  const exportedFontSize = (l.fontSize * l.scale) * (target.height * crop.height) / renderH;
+                const effectivePreviewH = (previewContentH && previewContentH > 0) ? previewContentH : geom.exportHeight;
 
-                  combinedLayers.push({
-                    text: l.text,
-                    color: l.color,
-                    isBold: l.isBold,
-                    isItalic: l.isItalic,
-                    outlineEnabled: l.outlineEnabled,
-                    outlineColor: l.outlineColor,
-                    outlineWidth: l.outlineWidth,
-                    startMs: 0,
-                    endMs: 999999999,
-                    x: uncroppedPctX,
-                    y: uncroppedPctY,
-                    fontSize: exportedFontSize,
-                    scale: 1.0,
-                    rotation: l.rotation,
-                    textAlign: l.textAlign || 'center',
-                    backgroundEnabled: l.backgroundEnabled,
-                    backgroundColor: l.backgroundColor,
-                    backgroundOpacity: l.backgroundOpacity,
-                    backgroundPadding: l.backgroundPadding,
-                    shadowEnabled: l.shadowEnabled,
-                    shadowColor: l.shadowColor,
-                    shadowOffsetX: l.shadowOffsetX,
-                    shadowOffsetY: l.shadowOffsetY,
-                  });
+                activeTextLayers.forEach(l => {
+                  combinedLayers.push(
+                    transformLayerForExport(
+                      l,
+                      seg.crop,
+                      effectivePreviewH,
+                      geom.exportHeight
+                    )
+                  );
                 });
 
                 activeStickers.forEach(s => {
-                  const layerAbsX = (s.x / 100) * previewLayout.width;
-                  const layerAbsY = (s.y / 100) * previewLayout.height;
-                  const layerVidX = layerAbsX - videoLeftInContainer;
-                  const layerVidY = layerAbsY - videoTopInContainer;
-                  
-                  const cropVidPctX = (layerVidX / renderW) * 100;
-                  const cropVidPctY = (layerVidY / renderH) * 100;
-                  
-                  const uncroppedPctX = (crop.x * 100) + (cropVidPctX * crop.width);
-                  const uncroppedPctY = (crop.y * 100) + (cropVidPctY * crop.height);
-                  
-                  // Stickers base size
-                  const exportedFontSize = (72 * s.scale) * (target.height * crop.height) / renderH;
-
-                  combinedLayers.push({
-                    text: s.content,
-                    color: '#FFFFFF',
-                    startMs: 0,
-                    endMs: 999999999,
-                    x: uncroppedPctX,
-                    y: uncroppedPctY,
-                    fontSize: exportedFontSize,
-                    scale: 1.0,
-                    rotation: s.rotation,
-                    textAlign: 'center',
-                  });
+                  combinedLayers.push(
+                    transformStickerForExport(
+                      s,
+                      seg.crop,
+                      effectivePreviewH,
+                      geom.exportHeight
+                    )
+                  );
                 });
 
                 options.textLayers = combinedLayers;
@@ -361,8 +304,10 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
 
             let rgba = await VideoFrameExtractorModule.getFrame(Math.round(t), options);
             if (rgba) {
-                const cx = Math.round(target.width * crop.x);
-                const cy = Math.round(target.height * crop.y);
+                const cx = geom.cropX;
+                const cy = geom.cropY;
+                const cw = geom.cropWidth;
+                const ch = geom.cropHeight;
                 const cropped = new Uint8Array(cw * ch * 4);
                 
                 for (let y = 0; y < ch; y++) {
@@ -384,9 +329,11 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                     
                     const minW = Math.min(cw, globalW);
                     const minH = Math.min(ch, globalH);
+                    const offsetX = Math.floor((globalW - minW) / 2);
+                    const offsetY = Math.floor((globalH - minH) / 2);
                     for (let y = 0; y < minH; y++) {
                         const srcIdx = y * cw * 4;
-                        const dstIdx = y * globalW * 4;
+                        const dstIdx = ((offsetY + y) * globalW + offsetX) * 4;
                         canvas.set(rgba.subarray(srcIdx, srcIdx + minW * 4), dstIdx);
                     }
                     rgba = canvas;
@@ -851,9 +798,12 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
       setIsAddingMedia(false);
       return;
     }
+    if (showTextLayerPicker) {
+      setShowTextLayerPicker(false);
+      return;
+    }
     if (isEditingText) {
-      setIsEditingText(false);
-      setSelectedTextLayerId(null);
+      applyTextChanges();
       return;
     }
     if (showTextTimelines) {
@@ -886,6 +836,151 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
 
   const insets = useSafeAreaInsets();
 
+  // 1. addNewTextLayer() — creates a new independent draft layer and opens its editor
+  const addNewTextLayer = useCallback(() => {
+    if (textLayers.length >= 5) {
+      Alert.alert('Limit Reached', 'You can only add up to 5 text boxes.');
+      return;
+    }
+    const newId = `text_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const start = 0;
+    const end = totalDurationMs > 0 ? totalDurationMs : 10000;
+    const newLayer: TextLayer = {
+      id: newId,
+      text: 'Add Text',
+      startMs: start,
+      endMs: end,
+      x: 50,
+      y: 50,
+      scale: 1,
+      rotation: 0,
+      opacity: 1,
+      fontFamily: 'Roboto_700Bold',
+      fontSize: 32,
+      isBold: true,
+      isItalic: false,
+      color: '#ffffff',
+      outlineEnabled: true,
+      outlineColor: '#000000',
+      outlineWidth: 2,
+      shadowEnabled: false,
+      shadowColor: '#000000',
+      shadowOpacity: 0.8,
+      shadowBlur: 4,
+      shadowOffsetX: 2,
+      shadowOffsetY: 2,
+      backgroundEnabled: false,
+      backgroundColor: '#000000',
+      backgroundOpacity: 0.6,
+      backgroundPadding: 8,
+      textAlign: 'center',
+      zIndex: textLayers.length + 1,
+    };
+    editingDraftRef.current = newLayer;
+    setEditingDraft(newLayer);
+    setSelectedTextLayerId(newId);
+    setIsEditingText(true);
+    setShowTextLayerPicker(false);
+    setShowTextTimelines(false);
+  }, [textLayers.length, totalDurationMs]);
+
+  // 2. editExistingTextLayer(id) — clones layer into draft and enters editing mode
+  const editExistingTextLayer = useCallback((id: string) => {
+    const existing = textLayers.find(l => l.id === id);
+    if (existing) {
+      const clone = { ...existing };
+      editingDraftRef.current = clone;
+      setEditingDraft(clone);
+      setSelectedTextLayerId(id);
+      setIsEditingText(true);
+      setShowTextLayerPicker(false);
+      setShowTextTimelines(false);
+    }
+  }, [textLayers]);
+
+  // 3. applyTextChanges() — saves the active draft to textLayers and exits editing mode
+  const applyTextChanges = useCallback(() => {
+    const draft = editingDraftRef.current || editingDraft;
+    if (draft) {
+      setTextLayers(prev => {
+        const idx = prev.findIndex(l => l.id === draft.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = draft;
+          return next;
+        }
+        return [...prev, draft];
+      });
+    }
+    editingDraftRef.current = null;
+    setEditingDraft(null);
+    setSelectedTextLayerId(null);
+    setIsEditingText(false);
+    setShowTextLayerPicker(false);
+    setShowTextTimelines(false);
+  }, [editingDraft]);
+
+  // 4. cancelTextChanges() — discards the active draft and exits editing mode
+  const cancelTextChanges = useCallback(() => {
+    editingDraftRef.current = null;
+    setEditingDraft(null);
+    setSelectedTextLayerId(null);
+    setIsEditingText(false);
+    setShowTextLayerPicker(false);
+    setShowTextTimelines(false);
+  }, []);
+
+  // 5. deleteEditingLayer(id) — deletes a layer
+  const deleteEditingLayer = useCallback((id: string) => {
+    setTextLayers(prev => prev.filter(l => l.id !== id));
+    if (editingDraft?.id === id || editingDraftRef.current?.id === id) {
+      editingDraftRef.current = null;
+      setEditingDraft(null);
+      setSelectedTextLayerId(null);
+      setIsEditingText(false);
+      setShowTextLayerPicker(false);
+      setShowTextTimelines(false);
+    }
+  }, [editingDraft]);
+
+  // 6. enterTextTool() — opens Text tool: if no layers, adds first; otherwise presents picker
+  const enterTextTool = useCallback(() => {
+    setPlaybackMode('project');
+    player.pause();
+    setIsTrimming(false);
+    setIsCropping(false);
+    setIsSpeeding(false);
+    setShowTextTimelines(false);
+
+    if (textLayers.length === 0) {
+      addNewTextLayer();
+    } else {
+      setShowTextLayerPicker(true);
+    }
+  }, [textLayers.length, addNewTextLayer, player]);
+
+  // Unified display layers: active draft replaces committed layer, or appended if new
+  const displayLayers = useMemo(() => {
+    if (!editingDraft) return textLayers;
+    const exists = textLayers.some(l => l.id === editingDraft.id);
+    if (exists) {
+      return textLayers.map(l => l.id === editingDraft.id ? editingDraft : l);
+    }
+    return [...textLayers, editingDraft];
+  }, [textLayers, editingDraft]);
+
+  const currentCrop = activeSegment.crop || { x: 0, y: 0, width: 1, height: 1 };
+  const contentDims = calculateContentDimensions(
+    activeSegment.width,
+    activeSegment.height,
+    isCropping ? null : currentCrop
+  );
+  const previewRect = previewLayout
+    ? calculatePreviewContentRect(previewLayout.width, previewLayout.height, contentDims.contentAspect)
+    : { width: 0, height: 0, aspectRatio: 1 };
+  const previewContentW = previewRect.width;
+  const previewContentH = previewRect.height;
+
   return (
     <View style={styles.container}>
       {/* 1. Top bar */}
@@ -894,14 +989,14 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
         onBack={handleTopBack}
         rightAction={
           <TouchableOpacity style={styles.headerButton} onPress={() => alert('Timeline Zoom — coming next')}>
-            <Text style={{ color: '#06b6d4', fontWeight: 'bold', fontSize: 16 }}>- O +</Text>
+            <Text style={{ color: Colors.secondaryLight, fontWeight: 'bold', fontSize: 16 }}>- O +</Text>
           </TouchableOpacity>
         }
       />
 
       {isProcessingMedia ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#06b6d4" />
+          <ActivityIndicator size="large" color={Colors.secondaryLight} />
           <Text style={styles.loadingText}>{processMsg}</Text>
         </View>
       ) : (
@@ -909,7 +1004,15 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
           {/* Main preview */}
           <View style={styles.previewContainer} onLayout={(e) => setPreviewLayout(e.nativeEvent.layout)}>
             {previewLayout && (
-              <>
+              <View
+                style={{
+                  width: previewContentW,
+                  height: previewContentH,
+                  position: 'relative',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
                 <CroppedVideoPreview
                   segment={activeSegment}
                   player={player}
@@ -922,58 +1025,51 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                   currentTimeSec={currentTimeSec}
                 />
                 {isEditingText && (
-                  <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1 }]} />
+                  <View
+                    style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1 }]}
+                    pointerEvents="none"
+                  />
                 )}
-                <TextOverlay
-                  layers={textLayers}
-                  currentTimeMs={globalCurrentMs}
-                  selectedLayerId={isEditingText ? selectedTextLayerId : null}
-                  editable={isEditingText}
-                  onSelectLayer={(id) => {
-                    if (isEditingText) {
-                      setSelectedTextLayerId(id);
-                      setPlaybackMode('project');
-                      setIsTrimming(false);
-                      setIsCropping(false);
-                      setIsSpeeding(false);
-                    }
-                  }}
-                  onDoubleTapLayer={(id) => {
-                    setSelectedTextLayerId(id);
-                    setIsEditingText(true);
-                  }}
-                  onUpdateLayer={(updated) => {
-                    setTextLayers(prev => prev.map(l => l.id === updated.id ? updated : l));
-                  }}
-                  onDeleteLayer={(id) => {
-                    setTextLayers(prev => prev.filter(l => l.id !== id));
-                    if (selectedTextLayerId === id) {
-                      setIsEditingText(false);
-                      setSelectedTextLayerId(null);
-                    }
-                  }}
-                  containerWidth={previewLayout.width}
-                  containerHeight={previewLayout.height}
-                />
-              </>
+                {!isCropping && (
+                  <TextOverlay
+                    layers={displayLayers}
+                    currentTimeMs={globalCurrentMs}
+                    selectedLayerId={isEditingText && editingDraft ? editingDraft.id : null}
+                    editable={isEditingText}
+                    onSelectLayer={(id) => {
+                      if (isEditingText && editingDraft && editingDraft.id !== id) {
+                        applyTextChanges();
+                        editExistingTextLayer(id);
+                      }
+                    }}
+                    onDoubleTapLayer={editExistingTextLayer}
+                    onUpdateLayer={(updated) => {
+                      editingDraftRef.current = updated;
+                      setEditingDraft(updated);
+                    }}
+                    onDeleteLayer={(id) => {
+                      deleteEditingLayer(id);
+                    }}
+                    containerWidth={previewContentW}
+                    containerHeight={previewContentH}
+                  />
+                )}
+              </View>
             )}
           </View>
 
           <View style={{ height: 308 + insets.bottom }}>
-            {isEditingText && selectedTextLayerId ? (
+            {isEditingText && editingDraft ? (
               <TextControls
-                layer={textLayers.find(l => l.id === selectedTextLayerId)!}
-                onChange={(updated) => setTextLayers(prev => prev.map(l => l.id === updated.id ? updated : l))}
-                onApply={() => {
-                  setIsEditingText(false);
-                  setSelectedTextLayerId(null);
-                  setShowTextTimelines(false);
+                layer={editingDraft}
+                onChange={(updated) => setEditingDraft(updated)}
+                onApply={applyTextChanges}
+                onCancel={cancelTextChanges}
+                onAddLayer={() => {
+                  applyTextChanges();
+                  addNewTextLayer();
                 }}
-                onCancel={() => {
-                  setIsEditingText(false);
-                  setSelectedTextLayerId(null);
-                  setShowTextTimelines(false);
-                }}
+                canAddLayer={textLayers.length < 5}
                 fonts={[
                   'Roboto_400Regular', 'Roboto_700Bold', 'Lato_400Regular', 'Oswald_400Regular',
                   'Raleway_400Regular', 'Montserrat_400Regular', 'Poppins_400Regular',
@@ -1068,43 +1164,43 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                     </Text>
                     <View style={styles.playbackControls}>
                       <TouchableOpacity
-                        onPress={() => { player.currentTime = 0; setCurrentTimeSec(0); }}
-                        style={styles.playBtn}
-                      >
-                        <SkipBack color="#f8fafc" size={20} />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={handlePlayPause} style={styles.playBtnMain}>
-                        {isPlaying
-                          ? <Pause color="#09090b" size={24} fill="#09090b" />
-                          : <Play color="#09090b" size={24} fill="#09090b" />}
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => { player.currentTime = getEffectiveDuration(activeSegment) / 1000; }}
-                        style={styles.playBtn}
-                      >
-                        <SkipForward color="#f8fafc" size={20} />
-                      </TouchableOpacity>
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                      {(activeSegment.speed && activeSegment.speed !== 1) ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Gauge size={14} color="#06b6d4" />
-                          <Text style={{ color: '#06b6d4', fontSize: 12, fontWeight: 'bold' }}>{activeSegment.speed}×</Text>
-                        </View>
-                      ) : (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Gauge size={14} color="#a1a1aa" />
-                          <Text style={styles.infoText}>1.0×</Text>
-                        </View>
-                      )}
-                      <Text style={styles.infoText}>{activeSegment.width}×{activeSegment.height}</Text>
-                    </View>
-                  </View>
+                         onPress={() => { player.currentTime = 0; setCurrentTimeSec(0); }}
+                         style={styles.playBtn}
+                       >
+                         <SkipBack color={Colors.text} size={20} />
+                       </TouchableOpacity>
+                       <TouchableOpacity onPress={handlePlayPause} style={styles.playBtnMain}>
+                         {isPlaying
+                           ? <Pause color={Colors.surface} size={24} fill={Colors.surface} />
+                           : <Play color={Colors.surface} size={24} fill={Colors.surface} />}
+                       </TouchableOpacity>
+                       <TouchableOpacity
+                         onPress={() => { player.currentTime = getEffectiveDuration(activeSegment) / 1000; }}
+                         style={styles.playBtn}
+                       >
+                         <SkipForward color={Colors.text} size={20} />
+                       </TouchableOpacity>
+                     </View>
+                     <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                       {(activeSegment.speed && activeSegment.speed !== 1) ? (
+                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                           <Gauge size={14} color={Colors.secondaryLight} />
+                           <Text style={{ color: Colors.secondaryLight, fontSize: 12, fontWeight: 'bold' }}>{activeSegment.speed}×</Text>
+                         </View>
+                       ) : (
+                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                           <Gauge size={14} color={Colors.textSecondary} />
+                           <Text style={styles.infoText}>1.0×</Text>
+                         </View>
+                       )}
+                       <Text style={styles.infoText}>{activeSegment.width}×{activeSegment.height}</Text>
+                     </View>
+                   </View>
 
-                )}
+                 )}
 
-                {/* 4. Timeline */}
-                <View style={[styles.timelineContainer, showTextTimelines && { flex: 1, height: undefined, borderBottomWidth: 0, backgroundColor: '#09090b' }]}>
+                 {/* 4. Timeline */}
+                 <View style={[styles.timelineContainer, showTextTimelines && { flex: 1, height: undefined, borderBottomWidth: 0, backgroundColor: Colors.backgroundDark }]}>
                   <ScrollView
                     ref={timelineScrollRef}
                     horizontal
@@ -1208,10 +1304,7 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                               key={layer.id}
                               layer={layer}
                               isSelected={isSelected}
-                              onSelect={() => {
-                                setSelectedTextLayerId(layer.id);
-                                setIsEditingText(true);
-                              }}
+                              onSelect={() => editExistingTextLayer(layer.id)}
                               onUpdateTiming={(startMs, endMs) => {
                                 setTextLayers(prev => prev.map(l => l.id === layer.id ? { ...l, startMs, endMs } : l));
                               }}
@@ -1304,31 +1397,7 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                               setSpeedState(activeSegment.speed ?? 1);
                               setIsSpeeding(true);
                             } else if (tool.id === 'text') {
-                              if (textLayers.length >= 5) {
-                                alert('You can only add up to 5 text boxes.');
-                                return;
-                              }
-                              setPlaybackMode('project');
-                              player.pause();
-                              const newId = `text-${Date.now()}`;
-                              const start = 0;
-                              const end = totalDurationMs;
-                              const newLayer: TextLayer = {
-                                id: newId,
-                                text: 'Your text',
-                                startMs: start,
-                                endMs: end,
-                                x: 50, y: 50, scale: 1, rotation: 0, opacity: 1,
-                                fontFamily: 'sans-serif', fontSize: 48, isBold: true, isItalic: false, color: '#ffffff',
-                                outlineEnabled: false, outlineColor: '#000000', outlineWidth: 2,
-                                shadowEnabled: true, shadowColor: '#000000', shadowOpacity: 0.8, shadowBlur: 4, shadowOffsetX: 2, shadowOffsetY: 2,
-                                backgroundEnabled: false, backgroundColor: '#000000', backgroundOpacity: 0.5, backgroundPadding: 8,
-                                textAlign: 'center', zIndex: textLayers.length + 1
-                              };
-                              setTextLayers(prev => [...prev, newLayer]);
-                              setSelectedTextLayerId(newId);
-                              setIsEditingText(true);
-                              setShowTextTimelines(true);
+                              enterTextTool();
                             } else if (tool.id === 'text_timing') {
                               if (textLayers.length === 0) {
                                 alert('Add some text first to adjust timing.');
@@ -1345,7 +1414,7 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                               alert(`${(tool as any).name} — coming next`);
                             }
                           }}>
-                            <View style={styles.toolIconContainer}><tool.icon size={24} color="#f8fafc" /></View>
+                            <View style={styles.toolIconContainer}><tool.icon size={24} color={Colors.text} /></View>
                             <Text style={styles.toolText}>{(tool as any).name}</Text>
                           </TouchableOpacity>
                         ))}
@@ -1355,7 +1424,7 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
                     {/* 6. Export footer */}
                     <View style={[styles.footerContainer, { paddingBottom: insets.bottom + 12 }]}>
                       <TouchableOpacity style={styles.addMediaFooterBtn} onPress={() => setIsAddingMedia(true)}>
-                        <Plus size={20} color="#06b6d4" style={{ marginRight: 6 }} />
+                        <Plus size={20} color={Colors.secondaryLight} style={{ marginRight: 6 }} />
                         <Text style={styles.addMediaFooterText}>Add Media</Text>
                       </TouchableOpacity>
 
@@ -1382,17 +1451,17 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
             <Text style={styles.sheetTitle}>Add Media</Text>
 
             <TouchableOpacity style={styles.sheetAction} onPress={() => handleAddMedia('video')}>
-              <Video color="#8b5cf6" size={24} />
+              <Video color={Colors.primary} size={24} />
               <Text style={styles.sheetActionText}>Video</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.sheetAction} onPress={() => handleAddMedia('gif')}>
-              <Layers color="#06b6d4" size={24} />
+              <Layers color={Colors.secondary} size={24} />
               <Text style={styles.sheetActionText}>GIF</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.sheetAction} onPress={() => handleAddMedia('image')}>
-              <ImageIcon color="#10b981" size={24} />
+              <ImageIcon color={Colors.success} size={24} />
               <Text style={styles.sheetActionText}>Image</Text>
             </TouchableOpacity>
 
@@ -1403,11 +1472,63 @@ function GifEditorWorkspace({ initialSegment, onBack, onExport }: GifEditorWorks
         </View>
       </Modal>
 
+      {/* Text Layer Picker Modal */}
+      <Modal visible={showTextLayerPicker} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.bottomSheet}>
+            <Text style={styles.sheetTitle}>Text Tool</Text>
+
+            <TouchableOpacity
+              style={[styles.sheetAction, { backgroundColor: Colors.primary, borderColor: Colors.primary }]}
+              onPress={() => {
+                setShowTextLayerPicker(false);
+                addNewTextLayer();
+              }}
+            >
+              <Plus size={20} color="#ffffff" />
+              <Text style={[styles.sheetActionText, { color: '#ffffff', fontWeight: 'bold' }]}>Add New Text Layer</Text>
+            </TouchableOpacity>
+
+            {textLayers.length > 0 && (
+              <>
+                <Text style={[styles.sheetTitle, { fontSize: 14, color: Colors.textSecondary, marginVertical: 12, textAlign: 'left' }]}>
+                  Edit Existing Text Layer:
+                </Text>
+                <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
+                  {textLayers.map((layer, index) => (
+                    <TouchableOpacity
+                      key={layer.id}
+                      style={styles.sheetAction}
+                      onPress={() => {
+                        setShowTextLayerPicker(false);
+                        editExistingTextLayer(layer.id);
+                      }}
+                    >
+                      <Type size={20} color={Colors.secondaryLight} />
+                      <Text style={styles.sheetActionText} numberOfLines={1}>
+                        {layer.text ? `"${layer.text}"` : `Text Layer ${index + 1}`}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+
+            <TouchableOpacity
+              style={styles.sheetCancel}
+              onPress={() => setShowTextLayerPicker(false)}
+            >
+              <Text style={styles.sheetCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Exporting Modal */}
       <Modal visible={isExporting} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.bottomSheet, { alignItems: 'center', justifyContent: 'center' }]}>
-            <ActivityIndicator size="large" color="#06b6d4" />
+            <ActivityIndicator size="large" color={Colors.secondaryLight} />
             <Text style={[styles.sheetTitle, { marginTop: 16 }]}>Exporting GIF... {exportProgress}%</Text>
           </View>
         </View>
@@ -1501,44 +1622,44 @@ function CroppedVideoPreview({ segment, player, containerWidth, containerHeight,
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b' },
+  container: { flex: 1, backgroundColor: Colors.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: '#27272a',
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
   headerButton: { padding: 8 },
-  title: { fontSize: 18, fontWeight: '600', color: '#f8fafc', letterSpacing: 0.5 },
+  title: { fontSize: 18, fontWeight: '600', color: Colors.text, letterSpacing: 0.5 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  loadingText: { color: '#a1a1aa', marginTop: 16, fontSize: 16 },
-  errorText: { color: '#ef4444', fontSize: 16, textAlign: 'center', marginBottom: 24 },
-  retryButton: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#27272a', borderRadius: 8 },
-  retryButtonText: { color: '#f8fafc', fontSize: 16, fontWeight: '500' },
+  loadingText: { color: Colors.textSecondary, marginTop: 16, fontSize: 16 },
+  errorText: { color: Colors.danger, fontSize: 16, textAlign: 'center', marginBottom: 24 },
+  retryButton: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: Colors.surfaceLight, borderRadius: 8 },
+  retryButtonText: { color: Colors.text, fontSize: 16, fontWeight: '500' },
 
   workspace: { flex: 1, flexDirection: 'column', overflow: 'hidden' },
 
   previewContainer: {
     flex: 1, width: '100%',
     justifyContent: 'center', alignItems: 'center',
-    backgroundColor: '#000000',
+    backgroundColor: Colors.previewBg,
   },
   previewVideo: { width: '100%', height: '100%' },
 
   controlsRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 12, paddingVertical: 10,
-    backgroundColor: '#09090b',
+    backgroundColor: Colors.surface,
   },
-  timeText: { color: '#f8fafc', fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'], flexShrink: 1 },
-  infoText: { color: '#a1a1aa', fontSize: 12, fontWeight: '500' },
+  timeText: { color: Colors.text, fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'], flexShrink: 1 },
+  infoText: { color: Colors.textSecondary, fontSize: 12, fontWeight: '500' },
   playbackControls: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   playBtn: { padding: 6 },
-  playBtnMain: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#06b6d4', justifyContent: 'center', alignItems: 'center' },
+  playBtnMain: { width: 38, height: 38, borderRadius: 19, backgroundColor: Colors.secondary, justifyContent: 'center', alignItems: 'center' },
 
   timelineContainer: {
     height: 96,
-    borderBottomWidth: 1, borderBottomColor: '#27272a',
-    backgroundColor: '#0f0f11',
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
+    backgroundColor: Colors.timelineTrack,
     overflow: 'hidden',
   },
   timelineContent: {
@@ -1549,7 +1670,7 @@ const styles = StyleSheet.create({
     minWidth: '100%',
   },
 
-  // Segment wrapper â€” needed so the delete button can be absolute-positioned over the segment
+  // Segment wrapper — needed so the delete button can be absolute-positioned over the segment
   segmentWrapper: {
     position: 'relative',
     marginRight: 6,
@@ -1557,19 +1678,19 @@ const styles = StyleSheet.create({
   segmentContainer: {
     flexDirection: 'row', height: 60,
     borderRadius: 8, overflow: 'hidden',
-    borderWidth: 2, borderColor: '#334155',
-    backgroundColor: '#18181b',
+    borderWidth: 2, borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
-  segmentActive: { borderColor: '#8b5cf6' },
+  segmentActive: { borderColor: Colors.primary },
   thumbnail: { flex: 1, height: '100%', resizeMode: 'cover' },
 
-  // Small Ã— delete button â€” top-right corner of selected segment
+  // Small × delete button — top-right corner of selected segment
   deleteSegmentBtn: {
     position: 'absolute',
     top: -6, right: -6,
     width: 18, height: 18,
     borderRadius: 9,
-    backgroundColor: '#ef4444',
+    backgroundColor: Colors.danger,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
@@ -1581,45 +1702,45 @@ const styles = StyleSheet.create({
     left: TIMELINE_H_PADDING, right: TIMELINE_H_PADDING,
   },
   playhead: { position: 'absolute', top: 0, bottom: 0, width: 40, marginLeft: -20, alignItems: 'center' },
-  playheadKnob: { width: 14, height: 16, borderRadius: 3, backgroundColor: '#ff0000', marginBottom: 2 },
-  playheadLine: { width: 2, flex: 1, backgroundColor: '#ff0000' },
+  playheadKnob: { width: 14, height: 16, borderRadius: 3, backgroundColor: Colors.scrubberNeedle, marginBottom: 2 },
+  playheadLine: { width: 2, flex: 1, backgroundColor: Colors.scrubberNeedle },
 
-  toolbarContainer: { height: 82, backgroundColor: '#09090b' },
+  toolbarContainer: { height: 82, backgroundColor: Colors.surface },
   toolbarContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 20, alignItems: 'center' },
   toolButton: { alignItems: 'center', gap: 6 },
-  toolIconContainer: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#18181b', justifyContent: 'center', alignItems: 'center' },
-  toolText: { color: '#a1a1aa', fontSize: 11, fontWeight: '500' },
+  toolIconContainer: { width: 42, height: 42, borderRadius: 21, backgroundColor: Colors.surfaceLight, justifyContent: 'center', alignItems: 'center' },
+  toolText: { color: Colors.textSecondary, fontSize: 11, fontWeight: '500' },
 
-  footerContainer: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, paddingBottom: 12, paddingTop: 12, backgroundColor: '#09090b' },
-  addMediaFooterBtn: { flex: 1, flexDirection: 'row', backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a', paddingVertical: 14, borderRadius: 100, justifyContent: 'center', alignItems: 'center' },
-  addMediaFooterText: { color: '#06b6d4', fontSize: 16, fontWeight: 'bold' },
-  exportButton: { flex: 1, flexDirection: 'row', backgroundColor: '#8b5cf6', paddingVertical: 14, borderRadius: 100, justifyContent: 'center', alignItems: 'center' },
+  footerContainer: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, paddingBottom: 12, paddingTop: 12, backgroundColor: Colors.surface },
+  addMediaFooterBtn: { flex: 1, flexDirection: 'row', backgroundColor: Colors.surfaceLight, borderWidth: 1, borderColor: Colors.border, paddingVertical: 14, borderRadius: 100, justifyContent: 'center', alignItems: 'center' },
+  addMediaFooterText: { color: Colors.secondaryLight, fontSize: 16, fontWeight: 'bold' },
+  exportButton: { flex: 1, flexDirection: 'row', backgroundColor: Colors.primary, paddingVertical: 14, borderRadius: 100, justifyContent: 'center', alignItems: 'center' },
   exportButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  bottomSheet: { backgroundColor: '#18181b', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
-  sheetTitle: { color: '#f8fafc', fontSize: 20, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
-  sheetAction: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#27272a', padding: 16, borderRadius: 16, marginBottom: 12, gap: 16 },
-  sheetActionText: { color: '#f8fafc', fontSize: 16, fontWeight: '600' },
+  modalOverlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  bottomSheet: { backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, borderTopWidth: 1, borderColor: Colors.border },
+  sheetTitle: { color: Colors.text, fontSize: 20, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
+  sheetAction: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surfaceLight, padding: 16, borderRadius: 16, marginBottom: 12, gap: 16, borderWidth: 1, borderColor: Colors.border },
+  sheetActionText: { color: Colors.text, fontSize: 16, fontWeight: '600' },
   sheetCancel: { marginTop: 8, padding: 16, alignItems: 'center' },
-  sheetCancelText: { color: '#a1a1aa', fontSize: 16, fontWeight: '600' },
+  sheetCancelText: { color: Colors.textSecondary, fontSize: 16, fontWeight: '600' },
 
-  trimContainer: { flex: 1, backgroundColor: '#09090b', borderTopWidth: 1, borderColor: '#27272a', justifyContent: 'space-between', paddingTop: 16 },
+  trimContainer: { flex: 1, backgroundColor: Colors.surface, borderTopWidth: 1, borderColor: Colors.border, justifyContent: 'space-between', paddingTop: 16 },
   trimHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
-  trimTitle: { color: '#f8fafc', fontSize: 16, fontWeight: 'bold' },
-  trimCancel: { color: '#a1a1aa', fontSize: 16 },
-  trimApply: { color: '#06b6d4', fontSize: 16, fontWeight: 'bold' },
+  trimTitle: { color: Colors.text, fontSize: 16, fontWeight: 'bold' },
+  trimCancel: { color: Colors.textSecondary, fontSize: 16 },
+  trimApply: { color: Colors.secondaryLight, fontSize: 16, fontWeight: 'bold' },
   trimInfo: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 },
-  trimTimeText: { color: '#f8fafc', fontSize: 13, fontVariant: ['tabular-nums'] },
+  trimTimeText: { color: Colors.text, fontSize: 13, fontVariant: ['tabular-nums'] },
   trimPlayRow: { alignItems: 'center', marginBottom: 16 },
-  trimTrackContainer: { height: 60, marginHorizontal: 20, position: 'relative', backgroundColor: '#18181b', borderRadius: 8, overflow: 'hidden' },
+  trimTrackContainer: { height: 60, marginHorizontal: 20, position: 'relative', backgroundColor: Colors.surfaceLight, borderRadius: 8, overflow: 'hidden' },
   trimThumbnails: { flexDirection: 'row', width: '100%', height: '100%' },
   trimThumb: { flex: 1, height: '100%', resizeMode: 'cover' },
-  trimDim: { position: 'absolute', top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' },
-  trimBorder: { position: 'absolute', top: 0, bottom: 0, borderWidth: 2, borderColor: '#06b6d4' },
-  trimPlayhead: { position: 'absolute', top: -5, bottom: -5, width: 2, backgroundColor: '#ff0000', marginLeft: -1 },
-  trimHandle: { position: 'absolute', top: 0, bottom: 0, width: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#06b6d4', zIndex: 10 },
-  trimHandleInner: { width: 2, height: 20, backgroundColor: '#09090b', borderRadius: 1 },
+  trimDim: { position: 'absolute', top: 0, bottom: 0, backgroundColor: Colors.overlay },
+  trimBorder: { position: 'absolute', top: 0, bottom: 0, borderWidth: 2, borderColor: Colors.secondary },
+  trimPlayhead: { position: 'absolute', top: -5, bottom: -5, width: 2, backgroundColor: Colors.scrubberNeedle, marginLeft: -1 },
+  trimHandle: { position: 'absolute', top: 0, bottom: 0, width: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.secondary, zIndex: 10 },
+  trimHandleInner: { width: 2, height: 20, backgroundColor: Colors.surface, borderRadius: 1 },
 });
 
 function TrimControls({ segment, player, onApply, onCancel, insets }: any) {
@@ -1776,7 +1897,7 @@ function TrimControls({ segment, player, onApply, onCancel, insets }: any) {
       </View>
       <View style={styles.trimPlayRow}>
         <TouchableOpacity onPress={handlePlayPause} style={styles.playBtnMain}>
-          {isPlaying ? <Pause color="#09090b" size={24} fill="#09090b" /> : <Play color="#09090b" size={24} fill="#09090b" />}
+          {isPlaying ? <Pause color={Colors.surface} size={24} fill={Colors.surface} /> : <Play color={Colors.surface} size={24} fill={Colors.surface} />}
         </TouchableOpacity>
       </View>
       <View style={styles.trimTrackContainer} onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>

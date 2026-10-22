@@ -1,33 +1,58 @@
 export const Colors = {
-  background: '#0E0F14',
-  backgroundDark: '#08080C',
-  surface: '#161822',
-  surfaceLight: '#222636',
-  card: '#1A1D2B',
-  cardHover: '#25293C',
-  border: '#2A2E40',
-  borderLight: '#393E54',
+  // Backgrounds: Soft tinted charcoal, deep navy, and subtle purple-blue tones
+  background: '#0c0e1a',
+  backgroundDark: '#080912',
+  surface: '#131629',
+  surfaceLight: '#1d223c',
+  card: '#181c34',
+  cardHover: '#23294c',
+  previewBg: '#090a14',
 
-  primary: '#7C3AED',
-  primaryLight: '#9061F9',
-  primaryDark: '#5B21B6',
-  secondary: '#3B82F6',
-  accent: '#EC4899',
+  // Borders & Dividers: Subtle lavender, blue, and navy tones
+  border: '#272d4c',
+  borderLight: '#39416d',
+  divider: 'rgba(165, 180, 252, 0.12)',
 
-  text: '#FFFFFF',
-  textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
+  // Primary: Vibrant violet and purple
+  primary: '#8b5cf6',
+  primaryLight: '#a78bfa',
+  primaryDark: '#6d28d9',
 
-  success: '#10B981',
-  warning: '#F59E0B',
-  danger: '#EF4444',
+  // Secondary: Electric blue and cyan
+  secondary: '#06b6d4',
+  secondaryLight: '#38bdf8',
+  secondaryDark: '#0284c7',
 
-  overlay: 'rgba(0, 0, 0, 0.75)',
-  timelineTrack: '#12141D',
-  scrubberNeedle: '#9061F9',
+  // Accent: Coral pink and soft magenta
+  accent: '#ec4899',
+  accentLight: '#f472b6',
+  accentCoral: '#fb7185',
 
+  // Highlights: Subtle lavender and aqua
+  lavender: '#c084fc',
+  aqua: '#2dd4bf',
+
+  // Text: Crisp white / soft white with readable secondary and muted tones
+  text: '#ffffff',
+  textSecondary: '#cbd5e1',
+  textMuted: '#94a3b8',
+
+  // Status & Feedback
+  success: '#10b981',
+  warning: '#f59e0b',
+  danger: '#f43f5e',
+
+  // Editor specific
+  overlay: 'rgba(8, 9, 18, 0.75)',
+  timelineTrack: '#0f1222',
+  scrubberNeedle: '#ec4899',
+  selection: '#8b5cf6',
+
+  // Gradients
   gradient: {
-    primary: ['#7C3AED', '#3B82F6'] as const,
-    surface: ['#1A1D2B', '#161822'] as const,
+    primary: ['#8b5cf6', '#06b6d4'] as const,
+    violetPink: ['#8b5cf6', '#ec4899'] as const,
+    surface: ['#1d223c', '#131629'] as const,
   }
 };
+

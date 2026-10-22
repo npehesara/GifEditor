@@ -13,6 +13,7 @@ class VideoFrameExtractorModule : Module() {
   private var retriever: MediaMetadataRetriever? = null
   private var targetWidth: Int = -1
   private var targetHeight: Int = -1
+  private var videoRotation: Int = 0
 
   override fun definition() = ModuleDefinition {
     Name("VideoFrameExtractor")
@@ -27,11 +28,21 @@ class VideoFrameExtractorModule : Module() {
           promise.reject("ERR_CACHE_DIR", "Cache directory is not available", null)
           return@AsyncFunction
         }
+        val rotStr = localRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
+        val rotation = rotStr?.toIntOrNull() ?: 0
+
         val resultList = mutableListOf<Map<String, Any>>()
         var currentMs = startTimeMs
         while (currentMs <= endTimeMs) {
-          val bitmap = localRetriever.getFrameAtTime((currentMs * 1000L).toLong(), MediaMetadataRetriever.OPTION_CLOSEST)
+          var bitmap = localRetriever.getFrameAtTime((currentMs * 1000L).toLong(), MediaMetadataRetriever.OPTION_CLOSEST)
           if (bitmap != null) {
+            if (rotation != 0) {
+              val matrix = android.graphics.Matrix()
+              matrix.postRotate(rotation.toFloat())
+              val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+              bitmap.recycle()
+              bitmap = rotated
+            }
             val fileName = "frame_${UUID.randomUUID()}_${currentMs.toLong()}.png"
             val file = File(cacheDir, fileName)
             FileOutputStream(file).use { out ->
@@ -67,6 +78,7 @@ class VideoFrameExtractorModule : Module() {
         var originalWidth = widthStr?.toIntOrNull() ?: maxWidth
         var originalHeight = heightStr?.toIntOrNull() ?: maxHeight
         val rotation = rotStr?.toIntOrNull() ?: 0
+        videoRotation = rotation
 
         // Swap dimensions if video is rotated 90 or 270 degrees
         if (rotation == 90 || rotation == 270) {
@@ -78,16 +90,18 @@ class VideoFrameExtractorModule : Module() {
         // Calculate proportional scale
         val scale = Math.min(maxWidth.toFloat() / originalWidth, maxHeight.toFloat() / originalHeight)
         if (scale < 1.0f) {
-          targetWidth = (originalWidth * scale).toInt()
-          targetHeight = (originalHeight * scale).toInt()
+          targetWidth = Math.max(2, Math.round(originalWidth * scale))
+          targetHeight = Math.max(2, Math.round(originalHeight * scale))
         } else {
           targetWidth = originalWidth
           targetHeight = originalHeight
         }
 
         // Ensure even dimensions
-        if (targetWidth % 2 != 0) targetWidth += 1
-        if (targetHeight % 2 != 0) targetHeight += 1
+        if (targetWidth % 2 != 0) targetWidth -= 1
+        if (targetHeight % 2 != 0) targetHeight -= 1
+        targetWidth = Math.max(2, targetWidth)
+        targetHeight = Math.max(2, targetHeight)
 
         promise.resolve(mapOf("width" to targetWidth, "height" to targetHeight))
       } catch (e: Exception) {
@@ -107,6 +121,14 @@ class VideoFrameExtractorModule : Module() {
         if (bitmap == null) {
           promise.resolve(null)
           return@AsyncFunction
+        }
+
+        if (videoRotation != 0) {
+          val matrix = android.graphics.Matrix()
+          matrix.postRotate(videoRotation.toFloat())
+          val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+          bitmap.recycle()
+          bitmap = rotated
         }
 
         // Scale if needed
@@ -161,7 +183,70 @@ class VideoFrameExtractorModule : Module() {
               val isBold = (layer["isBold"] as? Boolean) ?: false
               val isItalic = (layer["isItalic"] as? Boolean) ?: false
               val typefaceStyle = if (isBold && isItalic) android.graphics.Typeface.BOLD_ITALIC else if (isBold) android.graphics.Typeface.BOLD else if (isItalic) android.graphics.Typeface.ITALIC else android.graphics.Typeface.NORMAL
-              textPaint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, typefaceStyle)
+
+              val fontFamily = layer["fontFamily"] as? String
+              val context = appContext.reactContext
+              val typeface = if (!fontFamily.isNullOrBlank() && fontFamily != "sans-serif") {
+                try {
+                  val clazz = Class.forName("com.facebook.react.common.assets.ReactFontManager")
+                  val instance = clazz.getMethod("getInstance").invoke(null)
+                  
+                  // 1. Direct query from fontCache (where expo-font's FontLoaderModule caches custom fonts under Typeface.NORMAL)
+                  var resolvedTf: android.graphics.Typeface? = null
+                  try {
+                    val fontCacheField = clazz.getDeclaredField("fontCache").apply { isAccessible = true }
+                    val fontCache = fontCacheField.get(instance) as? Map<*, *>
+                    val assetFontFamily = fontCache?.get(fontFamily)
+                    if (assetFontFamily != null) {
+                      val getTfMethod = assetFontFamily.javaClass.getDeclaredMethod("getTypefaceForStyle", Int::class.javaPrimitiveType).apply { isAccessible = true }
+                      resolvedTf = getTfMethod.invoke(assetFontFamily, android.graphics.Typeface.NORMAL) as? android.graphics.Typeface
+                    }
+                  } catch (e: Exception) {}
+
+                  // 2. Direct query from customTypefaceCache
+                  if (resolvedTf == null) {
+                    try {
+                      val customCacheField = clazz.getDeclaredField("customTypefaceCache").apply { isAccessible = true }
+                      val customCache = customCacheField.get(instance) as? Map<*, *>
+                      resolvedTf = customCache?.get(fontFamily) as? android.graphics.Typeface
+                    } catch (e: Exception) {}
+                  }
+
+                  // 3. Fallback: getTypeface via method reflection with Typeface.NORMAL
+                  if (resolvedTf == null) {
+                    val method = clazz.methods.firstOrNull { 
+                      it.name == "getTypeface" && it.parameterTypes.size == 3 && it.parameterTypes[0] == String::class.java 
+                    }
+                    val tf = method?.invoke(instance, fontFamily, android.graphics.Typeface.NORMAL, context?.assets) as? android.graphics.Typeface
+                    if (tf != null && tf != android.graphics.Typeface.DEFAULT) {
+                      resolvedTf = tf
+                    }
+                  }
+
+                  if (resolvedTf != null) {
+                    if (isItalic && isBold) {
+                      android.graphics.Typeface.create(resolvedTf, android.graphics.Typeface.BOLD_ITALIC)
+                    } else if (isBold && !fontFamily.contains("Bold", ignoreCase = true)) {
+                      android.graphics.Typeface.create(resolvedTf, android.graphics.Typeface.BOLD)
+                    } else if (isItalic && !fontFamily.contains("Italic", ignoreCase = true)) {
+                      android.graphics.Typeface.create(resolvedTf, android.graphics.Typeface.ITALIC)
+                    } else {
+                      resolvedTf
+                    }
+                  } else {
+                    android.graphics.Typeface.create(fontFamily, typefaceStyle)
+                  }
+                } catch (e: Exception) {
+                  null
+                } ?: try {
+                  android.graphics.Typeface.create(fontFamily, typefaceStyle)
+                } catch (e: Exception) {
+                  android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, typefaceStyle)
+                }
+              } else {
+                android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, typefaceStyle)
+              }
+              textPaint.typeface = typeface
 
               val x = (xPercent / 100.0 * targetWidth).toFloat()
               val y = (yPercent / 100.0 * targetHeight).toFloat()
@@ -178,21 +263,6 @@ class VideoFrameExtractorModule : Module() {
 
               val textAlign = (layer["textAlign"] as? String) ?: "center"
               val maxLineWidth = lines.map { textPaint.measureText(it) }.maxOrNull() ?: 0f
-
-              val drawX = when (textAlign) {
-                "left" -> {
-                  textPaint.textAlign = android.graphics.Paint.Align.LEFT
-                  x - maxLineWidth / 2f
-                }
-                "right" -> {
-                  textPaint.textAlign = android.graphics.Paint.Align.RIGHT
-                  x + maxLineWidth / 2f
-                }
-                else -> {
-                  textPaint.textAlign = android.graphics.Paint.Align.CENTER
-                  x
-                }
-              }
 
               // Background
               val backgroundEnabled = (layer["backgroundEnabled"] as? Boolean) ?: false
@@ -242,13 +312,23 @@ class VideoFrameExtractorModule : Module() {
                 } catch (e: Exception) {}
               }
 
+              // Set Align.LEFT on paints and compute exact start X for each line to guarantee pixel-perfect centering
+              textPaint.textAlign = android.graphics.Paint.Align.LEFT
+              outlinePaint?.textAlign = android.graphics.Paint.Align.LEFT
+
               for (i in lines.indices) {
                 val line = lines[i]
+                val lineW = textPaint.measureText(line)
+                val lineX = when (textAlign) {
+                  "left" -> x - maxLineWidth / 2f
+                  "right" -> x + maxLineWidth / 2f - lineW
+                  else -> x - lineW / 2f
+                }
                 val lineY = firstBaselineY + i * lineHeight
                 if (outlinePaint != null) {
-                  canvas.drawText(line, drawX, lineY, outlinePaint)
+                  canvas.drawText(line, lineX, lineY, outlinePaint)
                 }
-                canvas.drawText(line, drawX, lineY, textPaint)
+                canvas.drawText(line, lineX, lineY, textPaint)
               }
 
               canvas.restore()

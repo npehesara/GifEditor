@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { Colors } from '../../constants/colors';
 
 interface SpeedControlsProps {
   currentSpeed: number;
@@ -52,17 +53,18 @@ export function SpeedControls({ currentSpeed, onSpeedSelect, onApply, onCancel, 
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b', borderTopWidth: 1, borderColor: '#27272a', justifyContent: 'space-between', paddingTop: 16 },
+  container: { flex: 1, backgroundColor: Colors.surface, borderTopWidth: 1, borderColor: Colors.border, justifyContent: 'space-between', paddingTop: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16 },
-  title: { color: '#f8fafc', fontSize: 16, fontWeight: 'bold' },
-  headerBtn: { color: '#a1a1aa', fontSize: 16 },
-  applyBtn: { color: '#06b6d4', fontWeight: 'bold' },
+  title: { color: Colors.text, fontSize: 16, fontWeight: 'bold' },
+  headerBtn: { color: Colors.textSecondary, fontSize: 16 },
+  applyBtn: { color: Colors.secondaryLight, fontWeight: 'bold' },
   speedDisplay: { alignItems: 'center', marginVertical: 12 },
-  speedDisplayText: { color: '#f8fafc', fontSize: 24, fontWeight: 'bold' },
+  speedDisplayText: { color: Colors.text, fontSize: 24, fontWeight: 'bold' },
   scrollContainer: { height: 60, justifyContent: 'center' },
   scrollContent: { paddingHorizontal: 16, gap: 12, alignItems: 'center' },
-  btn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a' },
-  btnActive: { backgroundColor: '#06b6d4', borderColor: '#06b6d4' },
-  text: { color: '#a1a1aa', fontSize: 14, fontWeight: '500' },
-  textActive: { color: '#09090b', fontWeight: 'bold' },
+  btn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: Colors.surfaceLight, borderWidth: 1, borderColor: Colors.border },
+  btnActive: { backgroundColor: Colors.secondary, borderColor: Colors.secondary },
+  text: { color: Colors.textSecondary, fontSize: 14, fontWeight: '500' },
+  textActive: { color: '#080912', fontWeight: 'bold' },
 });
+

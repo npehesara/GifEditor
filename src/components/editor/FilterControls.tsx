@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, PanResponder } from 'react-native';
 import { FilterConfig, FilterPresetId } from '../../types/editor';
 import { FILTER_PRESETS, getPresetConfig } from '../../constants/filters';
+import { Colors } from '../../constants/colors';
 
 interface FilterControlsProps {
   currentConfig: FilterConfig;
@@ -83,13 +84,13 @@ function CustomSlider({ label, value, min, max, onChange }: { label: string, val
 const sliderStyles = StyleSheet.create({
   container: { marginBottom: 20 },
   header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  label: { color: '#f8fafc', fontSize: 14, fontWeight: '500' },
-  value: { color: '#a1a1aa', fontSize: 14 },
+  label: { color: Colors.text, fontSize: 14, fontWeight: '500' },
+  value: { color: Colors.textSecondary, fontSize: 14 },
   trackContainer: { height: 24, justifyContent: 'center', position: 'relative' },
-  trackBackground: { height: 4, backgroundColor: '#27272a', borderRadius: 2, position: 'absolute', left: 0, right: 0 },
-  trackFill: { height: 4, backgroundColor: '#06b6d4', borderRadius: 2, position: 'absolute', left: 0 },
-  centerMark: { position: 'absolute', left: '50%', width: 2, height: 8, backgroundColor: '#a1a1aa', marginLeft: -1 },
-  thumb: { position: 'absolute', width: 20, height: 20, backgroundColor: '#fff', borderRadius: 10, marginLeft: -10, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3 },
+  trackBackground: { height: 4, backgroundColor: Colors.border, borderRadius: 2, position: 'absolute', left: 0, right: 0 },
+  trackFill: { height: 4, backgroundColor: Colors.secondary, borderRadius: 2, position: 'absolute', left: 0 },
+  centerMark: { position: 'absolute', left: '50%', width: 2, height: 8, backgroundColor: Colors.textMuted, marginLeft: -1 },
+  thumb: { position: 'absolute', width: 20, height: 20, backgroundColor: '#fff', borderRadius: 10, marginLeft: -10, elevation: 3, shadowColor: Colors.secondary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 3 },
 });
 
 
@@ -161,19 +162,20 @@ export function FilterControls({ currentConfig, onChange, onApply, onCancel, ins
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b', borderTopWidth: 1, borderColor: '#27272a', paddingTop: 16 },
+  container: { flex: 1, backgroundColor: Colors.surface, borderTopWidth: 1, borderColor: Colors.border, paddingTop: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 16 },
-  title: { color: '#f8fafc', fontSize: 16, fontWeight: 'bold' },
-  headerBtn: { color: '#a1a1aa', fontSize: 16 },
-  applyBtn: { color: '#06b6d4', fontWeight: 'bold' },
+  title: { color: Colors.text, fontSize: 16, fontWeight: 'bold' },
+  headerBtn: { color: Colors.textSecondary, fontSize: 16 },
+  applyBtn: { color: Colors.secondaryLight, fontWeight: 'bold' },
   presetsContainer: { height: 50, marginBottom: 12 },
   presetsScroll: { paddingHorizontal: 16, gap: 12, alignItems: 'center' },
-  presetBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a' },
-  presetBtnActive: { backgroundColor: '#06b6d4', borderColor: '#06b6d4' },
-  presetText: { color: '#a1a1aa', fontSize: 14, fontWeight: '500' },
-  presetTextActive: { color: '#09090b', fontWeight: 'bold' },
+  presetBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: Colors.surfaceLight, borderWidth: 1, borderColor: Colors.border },
+  presetBtnActive: { backgroundColor: Colors.secondary, borderColor: Colors.secondary },
+  presetText: { color: Colors.textSecondary, fontSize: 14, fontWeight: '500' },
+  presetTextActive: { color: '#080912', fontWeight: 'bold' },
   slidersContainer: { flex: 1 },
   slidersContent: { paddingHorizontal: 24, paddingBottom: 40, paddingTop: 8 },
-  resetBtn: { marginTop: 16, paddingVertical: 12, alignItems: 'center', borderRadius: 8, backgroundColor: '#27272a' },
-  resetBtnText: { color: '#f8fafc', fontWeight: 'bold' }
+  resetBtn: { marginTop: 16, paddingVertical: 12, alignItems: 'center', borderRadius: 8, backgroundColor: Colors.surfaceLight },
+  resetBtnText: { color: Colors.textSecondary, fontWeight: 'bold' }
 });
+

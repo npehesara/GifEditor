@@ -5,6 +5,7 @@ import { Layers, Plus, X, Trash2, Settings2 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { GifOutputInfo } from './GifOutputScreen';
 import { Header } from '../components/common/Header';
+import { Colors } from '../constants/colors';
 
 interface GifCollageScreenProps {
   onBack: () => void;
@@ -511,19 +512,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   placeholderCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.card,
     borderRadius: 24,
     padding: 40,
     alignItems: 'center',
     width: '100%',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
   },
   iconContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(236, 72, 153, 0.1)',
+    backgroundColor: 'rgba(236, 72, 153, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
@@ -531,22 +532,22 @@ const styles = StyleSheet.create({
   placeholderTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: Colors.text,
     marginBottom: 12,
     textAlign: 'center',
   },
   placeholderText: {
     fontSize: 16,
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
   collageContainer: {
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.surface,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
   },
   grid1: {
     flex: 1,
@@ -582,14 +583,14 @@ const styles = StyleSheet.create({
   },
   itemWrapper: {
     position: 'relative',
-    backgroundColor: '#0f172a',
+    backgroundColor: Colors.backgroundDark,
     borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'transparent',
   },
   itemWrapperSelected: {
-    borderColor: '#38bdf8',
+    borderColor: Colors.secondaryLight,
   },
   itemImage: {
     width: '100%',
@@ -629,14 +630,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ec4899',
+    backgroundColor: Colors.accent,
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 100,
     width: '100%',
-    shadowColor: '#ec4899',
+    shadowColor: Colors.accent,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 8,
   },
@@ -650,14 +651,14 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 100,
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.surfaceLight,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
     width: '100%',
     alignItems: 'center',
   },
   maxItemsText: {
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -670,13 +671,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   clearButtonText: {
-    color: '#ef4444',
+    color: Colors.danger,
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
   },
   primaryButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

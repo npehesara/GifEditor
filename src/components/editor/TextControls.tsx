@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Keyboa
 import { BlurView } from 'expo-blur';
 import { TextLayer } from '../../types/editor';
 import { AlignLeft, AlignCenter, AlignRight, Type, Palette, TypeOutline as TypeOutline, Square, Droplet, LayoutTemplate, Trash2, X, Check } from 'lucide-react-native';
+import { Colors } from '../../constants/colors';
 
 interface TextControlsProps {
   layer: TextLayer;
@@ -11,6 +12,8 @@ interface TextControlsProps {
   onCancel: () => void;
   fonts: string[];
   insets: { bottom: number; top: number };
+  onAddLayer?: () => void;
+  canAddLayer?: boolean;
 }
 
 const COLORS = [
@@ -23,7 +26,7 @@ const COLORS = [
 
 type Tab = 'text' | 'font' | 'color' | 'outline' | 'shadow' | 'bg';
 
-export function TextControls({ layer, onChange, onApply, onCancel, fonts, insets }: TextControlsProps) {
+export function TextControls({ layer, onChange, onApply, onCancel, fonts, insets, onAddLayer, canAddLayer }: TextControlsProps) {
   const [activeTab, setActiveTab] = useState<Tab>('text');
   const [isKbVisible, setIsKbVisible] = useState(false);
   const translateY = useRef(new Animated.Value(0)).current;
@@ -57,14 +60,14 @@ export function TextControls({ layer, onChange, onApply, onCancel, fonts, insets
       {COLORS.map(c => (
         <TouchableOpacity
           key={c}
-          style={[styles.colorSwatch, { backgroundColor: c === 'transparent' ? '#27272a' : c }, layer[key] === c && styles.swatchActive]}
+          style={[styles.colorSwatch, { backgroundColor: c === 'transparent' ? Colors.surfaceLight : c }, layer[key] === c && styles.swatchActive]}
           onPress={() => {
             update(key, c);
             if (alphaKey && c !== 'transparent') update(alphaKey, 1);
             if (alphaKey && c === 'transparent') update(alphaKey, 0);
           }}
         >
-          {c === 'transparent' && <Droplet size={16} color="#a1a1aa" />}
+          {c === 'transparent' && <Droplet size={16} color={Colors.textSecondary} />}
         </TouchableOpacity>
       ))}
     </View>
@@ -129,6 +132,11 @@ export function TextControls({ layer, onChange, onApply, onCancel, fonts, insets
             <TouchableOpacity onPress={onCancel} style={{ padding: 4 }}><Text style={styles.headerBtn}>Cancel</Text></TouchableOpacity>
             <Text style={styles.title}>Edit Text</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+              {canAddLayer && onAddLayer && (
+                <TouchableOpacity onPress={onAddLayer} style={{ padding: 4 }}>
+                  <Text style={[styles.headerBtn, { color: Colors.secondaryLight, fontWeight: 'bold' }]}>+ Add</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity onPress={onApply} style={{ padding: 4 }}><Text style={[styles.headerBtn, styles.applyBtn]}>Apply</Text></TouchableOpacity>
             </View>
           </View>
@@ -151,13 +159,13 @@ export function TextControls({ layer, onChange, onApply, onCancel, fonts, insets
                 </TouchableOpacity>
                 <View style={styles.alignRow}>
                   <TouchableOpacity onPress={() => update('textAlign', 'left')} style={[styles.alignBtn, layer.textAlign === 'left' && styles.alignActive]}>
-                    <AlignLeft color={layer.textAlign === 'left' ? '#09090b' : '#f8fafc'} />
+                    <AlignLeft color={layer.textAlign === 'left' ? '#ffffff' : Colors.textSecondary} />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => update('textAlign', 'center')} style={[styles.alignBtn, layer.textAlign === 'center' && styles.alignActive]}>
-                    <AlignCenter color={layer.textAlign === 'center' ? '#09090b' : '#f8fafc'} />
+                    <AlignCenter color={layer.textAlign === 'center' ? '#ffffff' : Colors.textSecondary} />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => update('textAlign', 'right')} style={[styles.alignBtn, layer.textAlign === 'right' && styles.alignActive]}>
-                    <AlignRight color={layer.textAlign === 'right' ? '#09090b' : '#f8fafc'} />
+                    <AlignRight color={layer.textAlign === 'right' ? '#ffffff' : Colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -255,37 +263,37 @@ export function TextControls({ layer, onChange, onApply, onCancel, fonts, insets
 }
 
 const styles = StyleSheet.create({
-  container: { height: 308, backgroundColor: '#09090b', borderTopWidth: 1, borderColor: '#27272a' },
-  tapToEditText: { backgroundColor: '#18181b', padding: 16, borderRadius: 8, borderWidth: 1, borderColor: '#27272a', marginBottom: 16, alignItems: 'center' },
-  tapToEditTextLabel: { color: '#a1a1aa', fontSize: 16 },
+  container: { height: 308, backgroundColor: Colors.surface, borderTopWidth: 1, borderColor: Colors.border },
+  tapToEditText: { backgroundColor: Colors.surfaceLight, padding: 16, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, marginBottom: 16, alignItems: 'center' },
+  tapToEditTextLabel: { color: Colors.textSecondary, fontSize: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
-  title: { color: '#f8fafc', fontSize: 16, fontWeight: 'bold' },
-  headerBtn: { color: '#a1a1aa', fontSize: 16 },
-  applyBtn: { color: '#06b6d4', fontWeight: 'bold' },
+  title: { color: Colors.text, fontSize: 16, fontWeight: 'bold' },
+  headerBtn: { color: Colors.textSecondary, fontSize: 16 },
+  applyBtn: { color: Colors.secondaryLight, fontWeight: 'bold' },
   tabsRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8 },
-  tabBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#18181b', marginRight: 8, borderWidth: 1, borderColor: '#27272a' },
-  tabBtnActive: { backgroundColor: '#f8fafc', borderColor: '#f8fafc' },
-  tabText: { color: '#a1a1aa', fontSize: 12, fontWeight: 'bold' },
-  tabTextActive: { color: '#09090b' },
+  tabBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: Colors.surfaceLight, marginRight: 8, borderWidth: 1, borderColor: Colors.border },
+  tabBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  tabText: { color: Colors.textSecondary, fontSize: 12, fontWeight: 'bold' },
+  tabTextActive: { color: '#ffffff' },
   content: { flex: 1, paddingHorizontal: 16 },
   panel: { flex: 1 },
   alignRow: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
-  alignBtn: { padding: 12, borderRadius: 8, backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a' },
-  alignActive: { backgroundColor: '#f8fafc', borderColor: '#f8fafc' },
-  fontBtn: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: '#18181b', marginRight: 8, borderWidth: 1, borderColor: '#27272a', justifyContent: 'center' },
-  fontBtnActive: { backgroundColor: '#f8fafc', borderColor: '#f8fafc' },
-  fontText: { color: '#a1a1aa', fontSize: 16 },
-  fontTextActive: { color: '#09090b' },
+  alignBtn: { padding: 12, borderRadius: 8, backgroundColor: Colors.surfaceLight, borderWidth: 1, borderColor: Colors.border },
+  alignActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  fontBtn: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: Colors.surfaceLight, marginRight: 8, borderWidth: 1, borderColor: Colors.border, justifyContent: 'center' },
+  fontBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  fontText: { color: Colors.textSecondary, fontSize: 16 },
+  fontTextActive: { color: '#ffffff' },
   row: { flexDirection: 'row', alignItems: 'center', marginTop: 16, justifyContent: 'space-between' },
-  label: { color: '#f8fafc', fontSize: 14, fontWeight: '500' },
-  adjBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#27272a', justifyContent: 'center', alignItems: 'center' },
-  adjText: { color: '#f8fafc', fontSize: 20, fontWeight: 'bold' },
+  label: { color: Colors.text, fontSize: 14, fontWeight: '500' },
+  adjBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surfaceLight, justifyContent: 'center', alignItems: 'center' },
+  adjText: { color: Colors.text, fontSize: 20, fontWeight: 'bold' },
   colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 },
-  colorSwatch: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#27272a', justifyContent: 'center', alignItems: 'center' },
-  swatchActive: { borderColor: '#f8fafc' },
-  colorSwatchTyping: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#27272a', justifyContent: 'center', alignItems: 'center' },
-  swatchTypingActive: { borderColor: '#f8fafc' },
-  toggleBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16, backgroundColor: '#27272a' },
-  toggleText: { color: '#f8fafc', fontWeight: 'bold', fontSize: 12 },
+  colorSwatch: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: Colors.border, justifyContent: 'center', alignItems: 'center' },
+  swatchActive: { borderColor: Colors.secondaryLight },
+  colorSwatchTyping: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: Colors.border, justifyContent: 'center', alignItems: 'center' },
+  swatchTypingActive: { borderColor: Colors.secondaryLight },
+  toggleBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16, backgroundColor: Colors.surfaceLight },
+  toggleText: { color: Colors.secondaryLight, fontWeight: 'bold', fontSize: 12 },
   iconBtn: { padding: 8 },
 });

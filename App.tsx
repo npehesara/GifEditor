@@ -34,6 +34,7 @@ import VideoToGifScreen from './src/screens/VideoToGifScreen';
 import GifOutputScreen, { GifOutputInfo } from './src/screens/GifOutputScreen';
 import GifCollageScreen from './src/screens/GifCollageScreen';
 import { DecodedGifInfo } from './src/services/gif/decoder';
+import { Colors } from './src/constants/colors';
 
 type ScreenState = 'Home' | 'Preview' | 'GifEditor' | 'GifToVideo' | 'Mp4Output' | 'VideoToGif' | 'GifOutput' | 'GifCollage';
 
@@ -274,6 +275,6 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#09090b',
+    backgroundColor: Colors.background,
   },
 });

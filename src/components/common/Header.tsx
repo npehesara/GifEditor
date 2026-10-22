@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, StyleProp, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
+import { Colors } from '../../constants/colors';
 
 export interface HeaderProps {
   title: string;
@@ -20,7 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
   showBack = true,
   rightAction,
   style,
-  backgroundColor = '#09090b',
+  backgroundColor = Colors.surface,
 }) => {
   const insets = useSafeAreaInsets();
   // Ensure we are safely below the camera cutout / punch hole / status bar on all devices
@@ -37,7 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
               activeOpacity={0.7}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              <ArrowLeft size={22} color="#f8fafc" />
+              <ArrowLeft size={22} color={Colors.text} />
             </TouchableOpacity>
           ) : (
             <View style={styles.placeholder} />
@@ -66,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
 const styles = StyleSheet.create({
   wrapper: {
     borderBottomWidth: 1,
-    borderBottomColor: '#27272a',
+    borderBottomColor: Colors.border,
     zIndex: 50,
   },
   content: {
@@ -93,11 +94,11 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#18181b',
+    backgroundColor: Colors.surfaceLight,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#27272a',
+    borderColor: Colors.border,
   },
   centerContainer: {
     flex: 1,
@@ -108,13 +109,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#f8fafc',
+    color: Colors.text,
     letterSpacing: 0.3,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 12,
-    color: '#a1a1aa',
+    color: Colors.textSecondary,
     fontWeight: '500',
     marginTop: 1,
     textAlign: 'center',
