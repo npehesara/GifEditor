@@ -61,3 +61,5 @@ scratch/
 
 # Generated Gradle caches inside local Expo modules
 /modules/*/android/.gradle/
+# Local Claude Code settings
+.claude/
